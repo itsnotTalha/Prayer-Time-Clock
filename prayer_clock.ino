@@ -8,8 +8,8 @@
 #include <WiFiClientSecure.h>
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
-const char* ssid     = "B-1";
-const char* password = "Shadow@b!";
+const char* ssid     = "Your_Wifi_name";
+const char* password = "Your_Wifi_Password";
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 6 * 3600);
@@ -48,13 +48,31 @@ String getFormattedTime12h() {
 
 int getNextPrayerIdx() {
   int nowMins = timeClient.getHours() * 60 + timeClient.getMinutes();
+
   for (int i = 0; i < 6; i++) {
     if (prayerTimes[i] == "--:--") continue;
-    int h = prayerTimes[i].substring(0, 2).toInt();
-    int m = prayerTimes[i].substring(3, 5).toInt();
-    if (h * 60 + m > nowMins) return i;
+
+    // Parse current prayer time
+    int hCurr = prayerTimes[i].substring(0, 2).toInt();
+    int mCurr = prayerTimes[i].substring(3, 5).toInt();
+
+    // Parse next prayer time (wrap to Fajr after Isha)
+    int nextI = (i + 1) % 6;
+    int hNext = prayerTimes[nextI].substring(0, 2).toInt();
+    int mNext = prayerTimes[nextI].substring(3, 5).toInt();
+
+    int currStart = hCurr * 60 + mCurr;
+    int nextStart = hNext * 60 + mNext;
+
+    // Handle midnight wrap (Isha window goes past midnight into next day)
+    if (nextStart < currStart) {
+      if (nowMins >= currStart || nowMins < nextStart) return i;
+    } else {
+      if (nowMins >= currStart && nowMins < nextStart) return i;
+    }
   }
-  return 0;
+
+  return 0; // fallback
 }
 
 String getDayAbbr() {
