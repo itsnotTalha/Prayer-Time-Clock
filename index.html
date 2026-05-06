@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prayer Clock · ESP32 Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@300;400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0d;
+  --s1: #111116;
+  --s2: #18181f;
+  --s3: #1f1f28;
+  --b1: rgba(255,255,255,0.055);
+  --b2: rgba(255,255,255,0.10);
+  --b3: rgba(255,255,255,0.18);
+  --gold: #c9a052;
+  --gold2: #e8c07a;
+  --gold-bg: rgba(201,160,82,0.08);
+  --gold-dim: rgba(201,160,82,0.25);
+  --green: #4da870;
+  --red: #d95f5f;
+  --blue: #5b8de8;
+  --amber: #e8a93a;
+  --text: #ddd8cc;
+  --muted: #5e5c6a;
+  --muted2: #8a8799;
+  --r: 10px;
+  --r2: 14px;
+  --mono: 'Azeret Mono', monospace;
+  --serif: 'Cormorant Garamond', serif;
+  --day-shift: 0;
+}
+body.day-mode {
+  --bg: #f2ede4;
+  --s1: #ede8de;
+  --s2: #e5dfd4;
+  --s3: #ddd7cb;
+  --b1: rgba(0,0,0,0.06);
+  --b2: rgba(0,0,0,0.10);
+  --b3: rgba(0,0,0,0.18);
+  --gold: #9a7020;
+  --gold2: #7a5510;
+  --gold-bg: rgba(154,112,32,0.08);
+  --gold-dim: rgba(154,112,32,0.2);
+  --text: #2a2620;
+  --muted: #a09880;
+  --muted2: #7a7060;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;min-height:100vh;transition:background 1.2s,color 0.6s;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px;}
+
+/* ── Connect Screen ───────────────────────────────────────────────────────── */
+#connect-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem;position:relative;overflow:hidden;}
+#connect-screen::before{content:'';position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(201,160,82,0.07) 0%,transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;}
+.connect-card{background:var(--s1);border:1px solid var(--b2);border-radius:20px;padding:3rem 2.5rem;width:100%;max-width:400px;display:flex;flex-direction:column;gap:1.75rem;position:relative;z-index:1;}
+.brand{text-align:center;}
+.brand-title{font-family:var(--serif);font-size:2.4rem;font-weight:300;color:var(--gold);letter-spacing:0.02em;line-height:1;}
+.brand-sub{font-size:10px;color:var(--muted);letter-spacing:0.2em;text-transform:uppercase;margin-top:0.5rem;}
+.field-group{display:flex;flex-direction:column;gap:0.35rem;}
+.flabel{font-size:10px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;}
+input[type=text],input[type=number],select,textarea{width:100%;background:var(--bg);border:1px solid var(--b2);color:var(--text);font-family:var(--mono);font-size:13px;padding:0.72rem 1rem;border-radius:var(--r);outline:none;transition:border-color 0.2s,box-shadow 0.2s;-webkit-appearance:none;}
+input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,160,82,0.12);}
+select option{background:var(--s2);}
+.btn{background:var(--gold);color:#08080b;border:none;padding:0.8rem 1.5rem;border-radius:var(--r);font-family:var(--mono);font-size:12px;font-weight:600;cursor:pointer;width:100%;letter-spacing:0.06em;text-transform:uppercase;transition:opacity 0.15s,transform 0.1s;}
+.btn:hover{opacity:0.88;}
+.btn:active{transform:scale(0.98);}
+.btn-ghost{background:transparent;color:var(--gold);border:1px solid var(--gold-dim);width:auto;padding:0.5rem 1rem;font-size:11px;}
+.btn-red{background:transparent;color:var(--red);border:1px solid rgba(217,95,95,0.25);width:auto;padding:0.5rem 1rem;font-size:11px;}
+.btn-sm{width:auto;padding:0.5rem 1rem;font-size:11px;}
+.btn-icon{width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;font-size:15px;border-radius:8px;background:var(--s2);border:1px solid var(--b1);color:var(--muted2);cursor:pointer;transition:all 0.15s;}
+.btn-icon:hover{border-color:var(--b3);color:var(--text);}
+.err-box{color:var(--red);font-size:11px;background:rgba(217,95,95,0.06);border:1px solid rgba(217,95,95,0.18);border-radius:var(--r);padding:0.6rem 0.9rem;display:none;text-align:center;}
+
+/* ── Dashboard Shell ──────────────────────────────────────────────────────── */
+#dashboard{display:none;flex-direction:column;min-height:100vh;}
+
+/* ── Topbar ───────────────────────────────────────────────────────────────── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0.85rem 1.5rem;border-bottom:1px solid var(--b1);background:var(--s1);position:sticky;top:0;z-index:200;gap:1rem;}
+.topbar-left{display:flex;align-items:center;gap:1rem;}
+.topbar-brand{font-family:var(--serif);font-size:1.4rem;font-weight:300;color:var(--gold);white-space:nowrap;}
+.conn-badge{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted2);background:var(--s2);border:1px solid var(--b1);border-radius:20px;padding:4px 10px;white-space:nowrap;}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background 0.3s,box-shadow 0.3s;}
+.dot.ok{background:var(--green);box-shadow:0 0 7px var(--green);}
+.dot.err{background:var(--red);}
+.dot.pulse{animation:dpulse 1.4s infinite;}
+@keyframes dpulse{0%,100%{opacity:1}50%{opacity:0.25}}
+.topbar-right{display:flex;align-items:center;gap:0.5rem;flex-shrink:0;}
+.quick-bar{display:flex;align-items:center;gap:0.4rem;}
+
+/* ── Content Layout ───────────────────────────────────────────────────────── */
+.content{display:grid;grid-template-columns:1fr 320px;gap:1.25rem;padding:1.25rem 1.5rem;max-width:1280px;margin:0 auto;width:100%;}
+@media(max-width:900px){
+  .content{grid-template-columns:1fr;padding:0.75rem;}
+  .topbar{padding:0.75rem 1rem;}
+  .topbar-brand{font-size:1.2rem;}
+  .conn-badge span.conn-ip{display:none;}
+}
+
+/* ── Hero Next Prayer ─────────────────────────────────────────────────────── */
+.hero{background:var(--s1);border:1px solid var(--b2);border-radius:var(--r2);padding:1.5rem;margin-bottom:1.25rem;position:relative;overflow:hidden;}
+.hero::after{content:'';position:absolute;bottom:-40px;right:-40px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,var(--gold-bg) 0%,transparent 70%);pointer-events:none;}
+.hero-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;}
+.next-label{font-size:10px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:0.35rem;}
+.next-name{font-family:var(--serif);font-size:2rem;font-weight:300;color:var(--gold2);line-height:1;}
+.next-time{font-size:12px;color:var(--muted2);margin-top:0.2rem;}
+.countdown{text-align:right;}
+.countdown-val{font-family:var(--serif);font-size:2.6rem;font-weight:300;color:var(--text);letter-spacing:0.02em;line-height:1;font-variant-numeric:tabular-nums;}
+.countdown-label{font-size:10px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;margin-top:0.25rem;text-align:right;}
+
+/* ── Progress Bar ─────────────────────────────────────────────────────────── */
+.prog-wrap{position:relative;}
+.prog-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:0.4rem;}
+.prog-track{height:3px;background:var(--b2);border-radius:2px;position:relative;overflow:visible;}
+.prog-fill{height:100%;background:var(--gold);border-radius:2px;transition:width 1s linear;position:relative;}
+.prog-dot{position:absolute;right:-5px;top:50%;transform:translateY(-50%);width:11px;height:11px;border-radius:50%;background:var(--gold);border:2px solid var(--bg);box-shadow:0 0 8px var(--gold);}
+.prog-pct{font-size:10px;color:var(--muted);text-align:right;margin-top:0.4rem;}
+
+/* ── Prayer Grid ──────────────────────────────────────────────────────────── */
+.section-label{font-size:10px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between;}
+.prayer-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;margin-bottom:1.25rem;}
+@media(max-width:600px){.prayer-grid{grid-template-columns:repeat(2,1fr);}}
+.pc{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:0.9rem 1rem;transition:border-color 0.3s,background 0.3s;position:relative;overflow:hidden;}
+.pc.active{border-color:var(--gold);background:var(--gold-bg);}
+.pc.active::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);animation:shimmer 2s infinite;}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.pc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;}
+.pc-name{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;}
+.pc.active .pc-name{color:var(--gold);}
+.pc-badge{font-size:9px;background:rgba(201,160,82,0.15);color:var(--gold);border-radius:4px;padding:1px 5px;}
+.pc-time{font-family:var(--serif);font-size:1.45rem;font-weight:300;color:var(--text);line-height:1.1;}
+.pc.active .pc-time{color:var(--gold2);}
+.pc-alarm{display:flex;align-items:center;justify-content:space-between;margin-top:0.6rem;padding-top:0.6rem;border-top:1px solid var(--b1);}
+.pc-alarm-name{font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px;}
+.pc-offset{font-size:10px;color:var(--muted);cursor:pointer;background:var(--s2);border:1px solid var(--b1);border-radius:4px;padding:1px 5px;transition:border-color 0.2s;}
+.pc-offset:hover{border-color:var(--b3);}
+
+/* ── Toggle ───────────────────────────────────────────────────────────────── */
+.tog{position:relative;width:34px;height:19px;flex-shrink:0;}
+.tog input{opacity:0;width:0;height:0;position:absolute;}
+.tog-sl{position:absolute;cursor:pointer;inset:0;background:var(--s3);border:1px solid var(--b2);border-radius:19px;transition:0.2s;}
+.tog-sl::before{content:'';position:absolute;height:13px;width:13px;left:2px;bottom:2px;background:var(--muted);border-radius:50%;transition:0.2s;}
+.tog input:checked+.tog-sl{background:rgba(201,160,82,0.18);border-color:var(--gold);}
+.tog input:checked+.tog-sl::before{transform:translateX(15px);background:var(--gold);}
+
+/* ── LCD Preview ──────────────────────────────────────────────────────────── */
+.lcd-wrap{background:var(--s1);border:1px solid var(--b2);border-radius:var(--r);padding:1.25rem;margin-bottom:1.25rem;}
+.lcd-device{background:#131a13;border:2px solid #2a352a;border-radius:8px;padding:14px 18px;position:relative;}
+.lcd-device::before{content:'';position:absolute;inset:0;border-radius:6px;background:repeating-linear-gradient(0deg,transparent,transparent 28px,rgba(168,212,168,0.015) 28px,rgba(168,212,168,0.015) 29px);pointer-events:none;}
+.lcd-row{font-family:'Courier New',monospace;font-size:1.05rem;line-height:1.95;color:#8ecf8e;letter-spacing:0.1em;text-shadow:0 0 10px rgba(142,207,142,0.45);white-space:pre;}
+.lcd-glow{animation:lcdblink 4s ease-in-out infinite;}
+@keyframes lcdblink{0%,100%{opacity:1}50%{opacity:0.9}}
+
+/* ── Panels ───────────────────────────────────────────────────────────────── */
+.panel{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);overflow:hidden;margin-bottom:0.75rem;}
+.panel-h{padding:0.8rem 1.1rem;border-bottom:1px solid var(--b1);font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted2);display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;transition:color 0.15s;}
+.panel-h:hover{color:var(--text);}
+.panel-b{padding:1rem 1.1rem;display:flex;flex-direction:column;gap:0.8rem;}
+.panel-b.col{display:none;}
+.chev{transition:transform 0.2s;font-size:10px;}
+.tog-row{display:flex;justify-content:space-between;align-items:center;}
+.tog-lbl{font-size:12px;color:var(--text);}
+
+/* ── Log Panel ────────────────────────────────────────────────────────────── */
+.log-entries{font-size:11px;max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;}
+.log-entry{display:flex;gap:8px;padding:4px 6px;border-radius:5px;transition:background 0.1s;}
+.log-entry:hover{background:var(--s2);}
+.log-time{color:var(--muted);flex-shrink:0;font-size:10px;}
+.log-msg{color:var(--muted2);}
+.log-msg.ok{color:var(--green);}
+.log-msg.err{color:var(--red);}
+.log-msg.info{color:var(--blue);}
+.log-msg.warn{color:var(--amber);}
+
+/* ── Notification Banner ──────────────────────────────────────────────────── */
+#notif-banner{position:fixed;top:64px;left:50%;transform:translateX(-50%) translateY(-20px);background:var(--s2);border:1px solid var(--gold-dim);border-radius:var(--r);padding:0.6rem 1.2rem;font-size:12px;color:var(--gold2);opacity:0;pointer-events:none;z-index:500;transition:opacity 0.3s,transform 0.3s;white-space:nowrap;}
+#notif-banner.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── Toast ────────────────────────────────────────────────────────────────── */
+#toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--s2);border:1px solid var(--b2);border-radius:var(--r);padding:0.7rem 1.1rem;font-size:12px;opacity:0;transform:translateY(8px);transition:opacity 0.2s,transform 0.2s;pointer-events:none;z-index:999;max-width:260px;}
+#toast.show{opacity:1;transform:translateY(0);}
+#toast.ok{border-color:var(--green);color:var(--green);}
+#toast.err{border-color:var(--red);color:var(--red);}
+#toast.info{border-color:var(--blue);color:var(--blue);}
+
+/* ── Profile Pills ────────────────────────────────────────────────────────── */
+.profile-pills{display:flex;gap:0.4rem;flex-wrap:wrap;}
+.pill{font-size:11px;border:1px solid var(--b2);border-radius:20px;padding:4px 12px;cursor:pointer;color:var(--muted2);transition:all 0.15s;background:transparent;}
+.pill:hover{border-color:var(--b3);color:var(--text);}
+.pill.active-pill{border-color:var(--gold);color:var(--gold);background:var(--gold-bg);}
+
+/* ── Push Times ───────────────────────────────────────────────────────────── */
+.push-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;}
+
+/* ── Geo button ───────────────────────────────────────────────────────────── */
+.geo-row{display:flex;gap:0.5rem;}
+.geo-row input{flex:1;}
+
+/* ── Mobile bottom bar ────────────────────────────────────────────────────── */
+@media(max-width:900px){
+  .mobile-bar{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--s1);border-top:1px solid var(--b2);padding:0.6rem 1rem;gap:0.5rem;z-index:300;}
+  .mobile-bar .btn{flex:1;padding:0.65rem;font-size:11px;}
+  body{padding-bottom:70px;}
+}
+@media(min-width:901px){.mobile-bar{display:none;}}
+
+input[type=range]{-webkit-appearance:none;height:4px;background:var(--b2);border-radius:2px;border:none;padding:0;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--gold);cursor:pointer;}
+.range-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;}
+.range-val{font-size:11px;color:var(--gold);min-width:32px;text-align:right;}
+</style>
+</head>
+<body>
+
+<!-- ───────────────────────── CONNECT SCREEN ────────────────────────────── -->
+<div id="connect-screen">
+  <div class="connect-card">
+    <div class="brand">
+      <div class="brand-title">Prayer Clock</div>
+      <div class="brand-sub">ESP32 Dashboard</div>
+    </div>
+    <div class="field-group">
+      <div class="flabel">ESP32 IP Address</div>
+      <input type="text" id="ip-input" placeholder="192.168.1.xx" autocomplete="off" spellcheck="false">
+    </div>
+    <div id="connect-error" class="err-box">Could not connect. Check IP and make sure the ESP32 is on the same WiFi.</div>
+    <button class="btn" id="connect-btn" onclick="doConnect()">Connect to Device</button>
+    <div style="font-size:10px;color:var(--muted);text-align:center">IP is printed in Serial Monitor at boot</div>
+  </div>
+</div>
+
+<!-- ───────────────────────── DASHBOARD ─────────────────────────────────── -->
+<div id="dashboard">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-brand">Prayer Clock</div>
+      <div class="conn-badge">
+        <div class="dot pulse" id="conn-dot"></div>
+        <span id="conn-text">Connecting…</span>
+        <span id="conn-ping" style="color:var(--muted)"></span>
+        <span class="conn-ip" id="conn-ip"></span>
+      </div>
+      <div style="font-size:10px;color:var(--muted);display:none" id="last-sync-el">sync —</div>
+    </div>
+    <div class="topbar-right">
+      <div class="quick-bar">
+        <button class="btn-icon" title="Force refetch" onclick="doRefetch()">↺</button>
+        <button class="btn-icon" title="Toggle backlight" onclick="toggleBacklight()" id="bl-btn">💡</button>
+        <button class="btn-icon" title="Test alarm" onclick="testAlarm()" id="alarm-test-btn">🔔</button>
+        <button class="btn-icon" title="Toggle day/night" onclick="toggleTheme()" id="theme-btn">🌙</button>
+        <button class="btn-icon btn-ghost btn-sm" onclick="doDisconnect()" style="width:auto;padding:0 10px;height:36px;font-size:11px;border-radius:8px;">Disconnect</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main grid -->
+  <div class="content">
+
+    <!-- ── LEFT COLUMN ───────────────────────────────────────────────────── -->
+    <div>
+
+      <!-- Hero: Next Prayer + Countdown -->
+      <div class="hero" id="hero-card">
+        <div class="hero-top">
+          <div>
+            <div class="next-label">Next Prayer</div>
+            <div class="next-name" id="next-name">—</div>
+            <div class="next-time" id="next-time-at">at —</div>
+          </div>
+          <div class="countdown">
+            <div class="countdown-val" id="countdown-val">--:--:--</div>
+            <div class="countdown-label">Time Remaining</div>
+          </div>
+        </div>
+        <!-- Progress bar -->
+        <div class="prog-wrap">
+          <div class="prog-labels">
+            <span id="prog-from">—</span>
+            <span id="prog-to">—</span>
+          </div>
+          <div class="prog-track">
+            <div class="prog-fill" id="prog-fill" style="width:0%">
+              <div class="prog-dot"></div>
+            </div>
+          </div>
+          <div class="prog-pct" id="prog-pct">0%</div>
+        </div>
+      </div>
+
+      <!-- LCD Preview -->
+      <div class="lcd-wrap">
+        <div class="section-label">
+          LCD Preview
+          <span style="font-size:10px;color:var(--muted)" id="lcd-status-label">live</span>
+        </div>
+        <div class="lcd-device lcd-glow">
+          <div class="lcd-row" id="lcd-r1">                </div>
+          <div class="lcd-row" id="lcd-r2">                </div>
+        </div>
+      </div>
+
+      <!-- Prayer Grid with alarm toggles -->
+      <div class="section-label">
+        Prayer Times
+        <button class="btn btn-ghost btn-sm" onclick="doRefetch()" style="font-size:10px">Refetch</button>
+      </div>
+      <div class="prayer-grid" id="prayer-grid"></div>
+
+    </div>
+
+    <!-- ── SIDEBAR ───────────────────────────────────────────────────────── -->
+    <div id="sidebar">
+
+      <!-- Profiles -->
+      <div class="panel">
+        <div class="panel-h" onclick="togPanel(this)">Profiles <span class="chev">▾</span></div>
+        <div class="panel-b">
+          <div class="profile-pills" id="profile-pills"></div>
+          <div style="display:flex;gap:0.4rem;">
+            <input type="text" id="profile-name-in" placeholder="New profile name" style="flex:1">
+            <button class="btn btn-ghost btn-sm" onclick="saveProfile()">Save</button>
+            <button class="btn btn-red btn-sm" onclick="deleteProfile()">Del</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Location -->
+      <div class="panel">
+        <div class="panel-h" onclick="togPanel(this)">Location &amp; Method <span class="chev">▾</span></div>
+        <div class="panel-b">
+          <div class="field-group">
+            <div class="flabel">City</div>
+            <div class="geo-row">
+              <input type="text" id="s-city" placeholder="Dhaka">
+              <button class="btn-icon" title="Auto-detect location" onclick="geoLocate()">📍</button>
+            </div>
+          </div>
+          <div class="field-group">
+            <div class="flabel">Country</div>
+            <input type="text" id="s-country" placeholder="Bangladesh">
+          </div>
+          <div class="field-group">
+            <div class="flabel">Calculation Method</div>
+            <select id="s-method">
+              <option value="0">Shia Ithna-Ansari</option>
+              <option value="1" selected>Univ. of Islamic Sciences, Karachi</option>
+              <option value="2">Islamic Society of North America</option>
+              <option value="3">Muslim World League</option>
+              <option value="4">Umm Al-Qura, Makkah</option>
+              <option value="5">Egyptian General Authority</option>
+              <option value="7">Institute of Geophysics, Tehran</option>
+              <option value="8">Gulf Region</option>
+              <option value="9">Kuwait</option>
+              <option value="10">Qatar</option>
+              <option value="11">MUIS Singapore</option>
+              <option value="12">Union Org. Islamic de France</option>
+              <option value="13">Diyanet, Turkey</option>
+              <option value="14">Spiritual Admin, Russia</option>
+              <option value="15">Moonsighting Committee Worldwide</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <div class="flabel">Asr School</div>
+            <select id="s-school">
+              <option value="0">Shafi (Standard)</option>
+              <option value="1" selected>Hanafi</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <div class="flabel">UTC Offset (hours)</div>
+            <input type="number" id="s-utc" value="6" min="-12" max="14">
+          </div>
+          <button class="btn btn-ghost" style="width:100%" onclick="applyLocation()">Apply &amp; Refetch</button>
+        </div>
+      </div>
+
+      <!-- Display Settings -->
+      <div class="panel">
+        <div class="panel-h" onclick="togPanel(this)">Display Settings <span class="chev">▾</span></div>
+        <div class="panel-b">
+          <div class="tog-row"><span class="tog-lbl">LCD Backlight</span>
+            <label class="tog"><input type="checkbox" id="s-bl" checked onchange="applyDisplay()"><span class="tog-sl"></span></label>
+          </div>
+          <div class="tog-row"><span class="tog-lbl">12-Hour Clock</span>
+            <label class="tog"><input type="checkbox" id="s-12h" checked onchange="applyDisplay()"><span class="tog-sl"></span></label>
+          </div>
+          <div class="tog-row"><span class="tog-lbl">Auto Day/Night Theme</span>
+            <label class="tog"><input type="checkbox" id="s-autonight" checked onchange="checkAutoTheme()"><span class="tog-sl"></span></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Push Manual Times -->
+      <div class="panel">
+        <div class="panel-h" onclick="togPanel(this)">Push Times Manually <span class="chev">▾</span></div>
+        <div class="panel-b">
+          <div class="push-grid" id="push-grid"></div>
+          <button class="btn btn-ghost" style="width:100%;margin-top:0.25rem" onclick="pushManualTimes()">Push to Device</button>
+        </div>
+      </div>
+
+      <!-- Send LCD Message -->
+      <div class="panel">
+        <div class="panel-h" onclick="togPanel(this)">Send LCD Message <span class="chev">▾</span></div>
+        <div class="panel-b">
+          <div class="field-group">
+            <div class="flabel">Line 1 (max 16)</div>
+            <input type="text" id="lcd-l1" maxlength="16" placeholder="Hello World">
+          </div>
+          <div class="field-group">
+            <div class="flabel">Line 2 (max 16)</div>
+            <input type="text" id="lcd-l2" maxlength="16" placeholder="Subtext here">
+          </div>
+          <div class="field-group">
+            <div class="flabel">Duration</div>
+            <div class="range-row">
+              <input type="range" id="lcd-ms-r" min="500" max="15000" step="500" value="3000" oninput="document.getElementById('lcd-ms-v').textContent=this.value/1000+'s'">
+              <span class="range-val" id="lcd-ms-v">3s</span>
+            </div>
+          </div>
+          <button class="btn btn-ghost" style="width:100%" onclick="sendLcdMsg()">Send to LCD</button>
+        </div>
+      </div>
+
+      <!-- Event Log -->
+      <div class="panel">
+        <div class="panel-h" onclick="togPanel(this)">Event Log <span class="chev">▾</span></div>
+        <div class="panel-b">
+          <div class="log-entries" id="log-entries">
+            <div class="log-entry"><span class="log-time">--:--</span><span class="log-msg">Dashboard loaded</span></div>
+          </div>
+          <button class="btn btn-red btn-sm" style="font-size:10px" onclick="clearLog()">Clear Log</button>
+        </div>
+      </div>
+
+    </div><!-- /sidebar -->
+  </div><!-- /content -->
+
+  <!-- Mobile bottom bar -->
+  <div class="mobile-bar">
+    <button class="btn btn-ghost" onclick="doRefetch()">↺ Refresh</button>
+    <button class="btn btn-ghost" onclick="toggleBacklight()">💡 Backlight</button>
+    <button class="btn btn-ghost" onclick="testAlarm()">🔔 Alarm</button>
+  </div>
+
+</div><!-- /dashboard -->
+
+<div id="notif-banner"></div>
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════════
+const PRAYER_NAMES = ["Fajr","Sunrise","Dhuhr","Asr","Maghrib","Isha"];
+let espIP = "";
+let pollTimer = null;
+let lcdScrollIdx = 0;
+let lcdScrollTimer = null;
+let countdownTimer = null;
+let lastSt = null;
+let notifQueue = new Set();
+let alarmStates = JSON.parse(localStorage.getItem("alarm_states") || "{}");
+let alarmOffsets = JSON.parse(localStorage.getItem("alarm_offsets") || "{}");
+PRAYER_NAMES.forEach((n,i) => {
+  if (alarmStates[i] === undefined) alarmStates[i] = (n !== "Sunrise");
+  if (alarmOffsets[i] === undefined) alarmOffsets[i] = 0;
+});
+let profiles = JSON.parse(localStorage.getItem("profiles") || "{}");
+let activeProfile = localStorage.getItem("active_profile") || null;
+let themeAuto = true;
+let forcedDay = null;
+let lastSyncTime = null;
+let lastPingMs = null;
+let customAlarmTimes = JSON.parse(localStorage.getItem("custom_alarm_times") || "{}");
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════════════════
+function apiUrl(p){ return `http://${espIP}${p}`; }
+
+async function apiFetch(path, opts={}) {
+  const t0 = performance.now();
+  const res = await fetch(apiUrl(path), {
+    ...opts,
+    headers:{"Content-Type":"application/json",...(opts.headers||{})}
+  });
+  lastPingMs = Math.round(performance.now()-t0);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+function padRight(s, len){ s=String(s); while(s.length<len) s+=" "; return s.substring(0,len); }
+
+function to12h(t){
+  if(!t||t==="--:--") return "--:--";
+  const [h,m]=t.split(":").map(Number);
+  const ap=h<12?"AM":"PM"; let hh=h%12; if(!hh) hh=12;
+  return String(hh).padStart(2,"0")+":"+String(m).padStart(2,"0")+ap;
+}
+
+function toMins(t){ if(!t||t.length<5||t[2]!==':') return -1; return parseInt(t)*60+parseInt(t.slice(3)); }
+
+function nowMins(){ const n=new Date(); return n.getHours()*60+n.getMinutes()+n.getSeconds()/60; }
+
+function fmtCountdown(secs){
+  secs=Math.max(0,Math.floor(secs));
+  const h=Math.floor(secs/3600), m=Math.floor((secs%3600)/60), s=secs%60;
+  if(h>0) return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+  return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+}
+
+function now12(){ const n=new Date(); let h=n.getHours(),m=n.getMinutes(),s=n.getSeconds(); const ap=h<12?"AM":"PM"; h=h%12||12; return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}${ap}`; }
+
+function logEntry(msg, type="ok"){
+  const el=document.getElementById("log-entries");
+  const now=new Date();
+  const ts=`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+  const row=document.createElement("div");
+  row.className="log-entry";
+  row.innerHTML=`<span class="log-time">${ts}</span><span class="log-msg ${type}">${msg}</span>`;
+  el.prepend(row);
+  while(el.children.length>60) el.removeChild(el.lastChild);
+}
+
+function toast(msg, type="ok", dur=2500){
+  const el=document.getElementById("toast");
+  el.textContent=msg; el.className="show "+type;
+  clearTimeout(el._t); el._t=setTimeout(()=>el.className="",dur);
+}
+
+function showBanner(msg){
+  const el=document.getElementById("notif-banner");
+  el.textContent=msg; el.className="show";
+  clearTimeout(el._t); el._t=setTimeout(()=>el.className="",4000);
+}
+
+function saveAlarms(){
+  localStorage.setItem("alarm_states",JSON.stringify(alarmStates));
+  localStorage.setItem("alarm_offsets",JSON.stringify(alarmOffsets));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PRAYER LOGIC
+// ═══════════════════════════════════════════════════════════════════════════
+const ACTIVE_IDX = [0,2,3,4,5];
+
+function getActivePrayer(prayers){
+  const nm=nowMins();
+  for(let k=0;k<5;k++){
+    const i=ACTIVE_IDX[k], ni=ACTIVE_IDX[(k+1)%5];
+    const c=toMins(prayers[i].time), x=toMins(prayers[ni].time);
+    if(c<0||x<0) continue;
+    if(x<c){ if(nm>=c||nm<x) return i; }
+    else { if(nm>=c&&nm<x) return i; }
+  }
+  return 0;
+}
+
+function getNextPrayer(prayers){
+  const nm=nowMins();
+  // find soonest prayer time still in the future (from markable set)
+  let best=null, bestSecs=Infinity;
+  for(let i=0;i<6;i++){
+    if(i===1) continue; // skip sunrise for "next"
+    const pm=toMins(prayers[i].time);
+    if(pm<0) continue;
+    let diff=(pm-nm)*60;
+    if(diff<0) diff+=86400;
+    if(diff<bestSecs){ bestSecs=diff; best=i; }
+  }
+  return {idx:best, secsLeft:bestSecs};
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// THEME / DAY-NIGHT
+// ═══════════════════════════════════════════════════════════════════════════
+function checkAutoTheme(){
+  themeAuto=document.getElementById("s-autonight").checked;
+  if(!themeAuto){ if(forcedDay!==null) applyTheme(forcedDay); return; }
+  if(!lastSt) return;
+  const sunrise=toMins(lastSt.prayers[1].time);
+  const maghrib=toMins(lastSt.prayers[4].time);
+  const nm=nowMins();
+  const isDay=(nm>=sunrise && nm<maghrib);
+  applyTheme(isDay);
+}
+
+function applyTheme(day){
+  document.body.classList.toggle("day-mode",day);
+  document.getElementById("theme-btn").textContent=day?"🌙":"☀️";
+}
+
+function toggleTheme(){
+  themeAuto=false;
+  document.getElementById("s-autonight").checked=false;
+  forcedDay=document.body.classList.contains("day-mode")?false:true;
+  applyTheme(forcedDay);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LCD SIMULATION
+// ═══════════════════════════════════════════════════════════════════════════
+function buildLcdRows(st){
+  if(!st) return ["Loading…        ","                "];
+  const n=new Date();
+  const sec=n.getSeconds(), phase=Math.floor(sec/3)%3;
+  const days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  let label=phase===0?days[n.getDay()]:phase===1?String(n.getDate()).padStart(2,"0"):months[n.getMonth()];
+  const row1=padRight(st.time+" "+label,16);
+  const idx=lcdScrollIdx;
+  const active=st.activePrayer;
+  const pr=st.prayers[idx];
+  const showStar=(idx!==1)&&(idx===active);
+  const marker=showStar?"*":" ";
+  const left=padRight(marker+pr.name,8);
+  const t12=to12h(pr.time);
+  const right=padRight(" "+t12,8);
+  const row2=left+right;
+  return [row1,row2];
+}
+
+function updateLCD(){
+  const [r1,r2]=buildLcdRows(lastSt);
+  document.getElementById("lcd-r1").textContent=r1;
+  document.getElementById("lcd-r2").textContent=r2;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HERO / COUNTDOWN / PROGRESS
+// ═══════════════════════════════════════════════════════════════════════════
+function updateHero(){
+  if(!lastSt||!lastSt.prayers) return;
+  const prayers=lastSt.prayers;
+  const {idx,secsLeft}=getNextPrayer(prayers);
+  if(idx===null) return;
+
+  document.getElementById("next-name").textContent=PRAYER_NAMES[idx];
+  document.getElementById("next-time-at").textContent="at "+to12h(prayers[idx].time);
+  document.getElementById("countdown-val").textContent=fmtCountdown(secsLeft);
+
+  // Progress bar between active and next
+  const active=getActivePrayer(prayers);
+  const fromM=toMins(prayers[active].time);
+  const toM=toMins(prayers[idx].time);
+  const nm=nowMins();
+  let total=(toM-fromM+1440)%1440||1;
+  let elapsed=(nm-fromM+1440)%1440;
+  const pct=Math.min(100,Math.max(0,(elapsed/total)*100));
+  document.getElementById("prog-fill").style.width=pct.toFixed(1)+"%";
+  document.getElementById("prog-from").textContent=PRAYER_NAMES[active];
+  document.getElementById("prog-to").textContent=PRAYER_NAMES[idx];
+  document.getElementById("prog-pct").textContent=pct.toFixed(0)+"% elapsed";
+
+  // Smart notifications
+  const minLeft=secsLeft/60;
+  const key=PRAYER_NAMES[idx]+"_"+Math.floor(minLeft);
+  if(minLeft<=5 && minLeft>4.5 && !notifQueue.has("5_"+idx)){
+    notifQueue.add("5_"+idx);
+    showBanner(PRAYER_NAMES[idx]+" in 5 minutes");
+    if(alarmStates[idx]) scheduleAlarmNotif(PRAYER_NAMES[idx]);
+  }
+  if(minLeft<=1 && !notifQueue.has("now_"+idx)){
+    notifQueue.add("now_"+idx);
+    showBanner("🕌 Time for "+PRAYER_NAMES[idx]);
+  }
+}
+
+function scheduleAlarmNotif(name){
+  if(Notification.permission==="granted"){
+    new Notification("Prayer Time",{body:"Time for "+name,icon:""});
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PRAYER GRID
+// ═══════════════════════════════════════════════════════════════════════════
+function buildPrayerGrid(prayers){
+  const grid=document.getElementById("prayer-grid");
+  grid.innerHTML="";
+  const active=getActivePrayer(prayers);
+  prayers.forEach((p,i)=>{
+    const isActive=(i===active&&i!==1);
+    const on=alarmStates[i];
+    const off=alarmOffsets[i]||0;
+    const customTime=customAlarmTimes[i]||"";
+    const div=document.createElement("div");
+    div.className="pc"+(isActive?" active":"");
+    div.innerHTML=`
+      <div class="pc-top">
+        <div class="pc-name">${p.name}${isActive?'<span class="pc-badge" style="margin-left:5px">active</span>':""}</div>
+      </div>
+      <div class="pc-time">${to12h(p.time)}</div>
+      ${i!==1?`<div class="pc-alarm">
+        <span class="pc-alarm-name">🔔 <span style="color:${on?"var(--gold)":"var(--muted)"};">${on?"ON":"OFF"}</span></span>
+        <span class="pc-offset" title="Click to set offset" onclick="editOffset(${i})" id="off-${i}">+${off}m</span>
+        <label class="tog"><input type="checkbox" ${on?"checked":""} onchange="toggleAlarm(${i},this.checked)"><span class="tog-sl"></span></label>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="setCustomAlarmTime(${i})" style="width:100%;margin-top:0.5rem;font-size:10px;">
+        ⏰ Set Alarm ${customTime?'('+customTime+')':''}
+      </button>
+      `:``}
+    `;
+    grid.appendChild(div);
+  });
+}
+
+function toggleAlarm(i, v){
+  alarmStates[i]=v;
+  saveAlarms();
+  toast(PRAYER_NAMES[i]+" alarm "+(v?"ON":"OFF"), v?"ok":"info");
+  logEntry(PRAYER_NAMES[i]+" alarm "+(v?"enabled":"disabled"), v?"ok":"info");
+}
+
+function editOffset(i){
+  const cur=alarmOffsets[i]||0;
+  const v=prompt(`Offset for ${PRAYER_NAMES[i]} (minutes after adhan, 0-60):`, cur);
+  if(v===null) return;
+  const n=parseInt(v)||0;
+  alarmOffsets[i]=Math.max(0,Math.min(60,n));
+  saveAlarms();
+  document.getElementById("off-"+i).textContent="+"+alarmOffsets[i]+"m";
+  toast("Offset set to +"+alarmOffsets[i]+"min");
+}
+
+function setCustomAlarmTime(i){
+  const cur=customAlarmTimes[i]||"";
+  const v=prompt(`Set custom alarm time for ${PRAYER_NAMES[i]} (HH:MM format, or leave blank for prayer time):`, cur);
+  if(v===null) return;
+  const trimmed=v.trim();
+  if(trimmed===""){
+    delete customAlarmTimes[i];
+  } else {
+    if(!/^\d{1,2}:\d{2}$/.test(trimmed)){ toast("Invalid time format. Use HH:MM","err"); return; }
+    const [h,m]=trimmed.split(":").map(Number);
+    if(h<0||h>23||m<0||m>59){ toast("Invalid time values","err"); return; }
+    customAlarmTimes[i]=trimmed;
+  }
+  localStorage.setItem("custom_alarm_times",JSON.stringify(customAlarmTimes));
+  buildPrayerGrid(lastSt.prayers);
+  toast(customAlarmTimes[i]?`Alarm set to ${customAlarmTimes[i]}`:`Using prayer time for ${PRAYER_NAMES[i]}`,"ok");
+  logEntry(`Alarm time for ${PRAYER_NAMES[i]}: ${customAlarmTimes[i]||"prayer time"}`,"info");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PUSH GRID
+// ═══════════════════════════════════════════════════════════════════════════
+function buildPushGrid(prayers){
+  const g=document.getElementById("push-grid");
+  if(g.children.length>0) return;
+  g.innerHTML="";
+  PRAYER_NAMES.forEach((name,i)=>{
+    const val=prayers[i]&&prayers[i].time!=="--:--"?prayers[i].time:"";
+    g.innerHTML+=`<div class="field-group"><div class="flabel">${name}</div><input type="text" id="push-${i}" value="${val}" placeholder="HH:MM"></div>`;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// POLL / STATUS
+// ═══════════════════════════════════════════════════════════════════════════
+async function pollStatus(){
+  try {
+    const st=await apiFetch("/status");
+    lastSt=st;
+    lastSyncTime=new Date();
+
+    // Connection badge
+    document.getElementById("conn-dot").className="dot ok";
+    document.getElementById("conn-text").textContent="Connected";
+    document.getElementById("conn-ping").textContent=lastPingMs+"ms";
+    const ls=document.getElementById("last-sync-el");
+    ls.style.display="";
+    ls.textContent="sync "+formatAgo(lastSyncTime);
+
+    buildPrayerGrid(st.prayers);
+    buildPushGrid(st.prayers);
+    updateLCD();
+    updateHero();
+    checkAutoTheme();
+
+    // Populate settings (only if not actively editing)
+    if(!document.getElementById("s-city").dataset.editing) document.getElementById("s-city").value=st.city;
+    if(!document.getElementById("s-country").dataset.editing) document.getElementById("s-country").value=st.country;
+    document.getElementById("s-method").value=st.method;
+    document.getElementById("s-school").value=st.school;
+    document.getElementById("s-utc").value=st.utcOffsetH;
+    document.getElementById("s-bl").checked=st.backlight;
+    document.getElementById("s-12h").checked=st.use12h;
+
+  } catch(e){
+    document.getElementById("conn-dot").className="dot err";
+    document.getElementById("conn-text").textContent="Offline";
+    document.getElementById("conn-ping").textContent="";
+    logEntry("Connection lost","err");
+  }
+}
+
+function formatAgo(d){ if(!d) return "never"; const s=Math.floor((Date.now()-d)/1000); if(s<10) return "just now"; if(s<60) return s+"s ago"; return Math.floor(s/60)+"m ago"; }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PROFILES
+// ═══════════════════════════════════════════════════════════════════════════
+function renderProfiles(){
+  const c=document.getElementById("profile-pills");
+  c.innerHTML="";
+  if(Object.keys(profiles).length===0){ c.innerHTML='<span style="font-size:10px;color:var(--muted)">No saved profiles</span>'; return; }
+  Object.keys(profiles).forEach(name=>{
+    const el=document.createElement("span");
+    el.className="pill"+(activeProfile===name?" active-pill":"");
+    el.textContent=name;
+    el.onclick=()=>loadProfile(name);
+    c.appendChild(el);
+  });
+}
+
+function saveProfile(){
+  const name=document.getElementById("profile-name-in").value.trim();
+  if(!name){ toast("Enter a profile name","err"); return; }
+  profiles[name]={city:document.getElementById("s-city").value,country:document.getElementById("s-country").value,method:document.getElementById("s-method").value,school:document.getElementById("s-school").value,utcOffsetH:document.getElementById("s-utc").value};
+  localStorage.setItem("profiles",JSON.stringify(profiles));
+  activeProfile=name; localStorage.setItem("active_profile",name);
+  renderProfiles();
+  toast("Profile '"+name+"' saved");
+  logEntry("Profile saved: "+name,"info");
+}
+
+function loadProfile(name){
+  const p=profiles[name]; if(!p) return;
+  document.getElementById("s-city").value=p.city;
+  document.getElementById("s-country").value=p.country;
+  document.getElementById("s-method").value=p.method;
+  document.getElementById("s-school").value=p.school;
+  document.getElementById("s-utc").value=p.utcOffsetH;
+  activeProfile=name; localStorage.setItem("active_profile",name);
+  renderProfiles();
+  toast("Loaded: "+name);
+}
+
+function deleteProfile(){
+  if(!activeProfile){ toast("Select a profile first","err"); return; }
+  delete profiles[activeProfile];
+  localStorage.setItem("profiles",JSON.stringify(profiles));
+  activeProfile=null; localStorage.removeItem("active_profile");
+  renderProfiles();
+  toast("Profile deleted","info");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+async function applyLocation(){
+  const body={city:document.getElementById("s-city").value.trim(),country:document.getElementById("s-country").value.trim(),method:parseInt(document.getElementById("s-method").value),school:parseInt(document.getElementById("s-school").value),utcOffsetH:parseInt(document.getElementById("s-utc").value)};
+  try{ await apiFetch("/update",{method:"POST",body:JSON.stringify(body)}); toast("Location updated ✓"); logEntry("Location → "+body.city+", "+body.country); setTimeout(pollStatus,1200); }
+  catch(e){ toast("Update failed","err"); logEntry("Location update failed","err"); }
+}
+
+async function applyDisplay(){
+  const body={backlight:document.getElementById("s-bl").checked,use12h:document.getElementById("s-12h").checked};
+  try{ await apiFetch("/update",{method:"POST",body:JSON.stringify(body)}); toast("Display updated"); logEntry("Display settings updated","info"); }
+  catch(e){ toast("Failed","err"); }
+}
+
+async function toggleBacklight(){
+  const cb=document.getElementById("s-bl"); cb.checked=!cb.checked; await applyDisplay();
+  logEntry("Backlight "+(cb.checked?"on":"off"),"info");
+}
+
+async function doRefetch(){
+  try{ await apiFetch("/refetch"); toast("Prayer times refreshed ✓"); logEntry("Prayer times refetched"); setTimeout(pollStatus,1000); }
+  catch(e){ toast("Refetch failed","err"); logEntry("Refetch failed","err"); }
+}
+
+async function testAlarm(){
+  toast("🔔 Alarm test triggered","info");
+  logEntry("Alarm test sent","info");
+  // Also play a browser beep
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(); const g=ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value=880; o.type="sine";
+    g.gain.setValueAtTime(0.3,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.8);
+    o.start(); o.stop(ctx.currentTime+0.8);
+  } catch(e){}
+  // Signal to ESP
+  try{ await apiFetch("/update",{method:"POST",body:JSON.stringify({testAlarm:true})}); } catch(e){}
+}
+
+async function sendLcdMsg(){
+  const body={line1:document.getElementById("lcd-l1").value,line2:document.getElementById("lcd-l2").value,ms:parseInt(document.getElementById("lcd-ms-r").value)};
+  try{ await apiFetch("/lcd",{method:"POST",body:JSON.stringify(body)}); toast("Message sent to LCD"); logEntry('LCD: "'+body.line1+'"'); }
+  catch(e){ toast("Failed","err"); logEntry("LCD send failed","err"); }
+}
+
+async function pushManualTimes(){
+  const prayers=PRAYER_NAMES.map((name,i)=>({name,time:document.getElementById("push-"+i).value.trim()||"--:--"}));
+  try{ await apiFetch("/update",{method:"POST",body:JSON.stringify({prayers})}); toast("Times pushed ✓"); logEntry("Manual prayer times pushed"); setTimeout(pollStatus,800); }
+  catch(e){ toast("Failed","err"); logEntry("Push times failed","err"); }
+}
+
+function clearLog(){ document.getElementById("log-entries").innerHTML=""; logEntry("Log cleared","info"); }
+
+// ── Geolocation ──────────────────────────────────────────────────────────
+function geoLocate(){
+  if(!navigator.geolocation){ toast("Geolocation not supported","err"); return; }
+  toast("Detecting location…","info",3000);
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    try{
+      const {latitude:lat,longitude:lng}=pos.coords;
+      const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+      const d=await r.json();
+      const city=d.address.city||d.address.town||d.address.village||"";
+      const country=d.address.country||"";
+      document.getElementById("s-city").value=city;
+      document.getElementById("s-country").value=country;
+      toast("Location detected ✓"); logEntry("Auto-location: "+city+", "+country,"info");
+    } catch(e){ toast("Location lookup failed","err"); }
+  },()=>{ toast("Permission denied","err"); });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONNECT / DISCONNECT
+// ═══════════════════════════════════════════════════════════════════════════
+async function doConnect(){
+  const ip=document.getElementById("ip-input").value.trim();
+  if(!ip){ toast("Enter IP address","err"); return; }
+  const btn=document.getElementById("connect-btn");
+  btn.textContent="Connecting…"; btn.disabled=true;
+  document.getElementById("connect-error").style.display="none";
+  espIP=ip;
+  try{
+    await apiFetch("/status");
+    document.getElementById("connect-screen").style.display="none";
+    document.getElementById("dashboard").style.display="flex";
+    document.getElementById("conn-ip").textContent=ip;
+    localStorage.setItem("esp_ip",ip);
+    renderProfiles();
+    if(Notification.permission==="default") Notification.requestPermission();
+    await pollStatus();
+    logEntry("Connected to "+ip,"ok");
+    pollTimer=setInterval(pollStatus,5000);
+    lcdScrollTimer=setInterval(()=>{ lcdScrollIdx=(lcdScrollIdx+1)%6; updateLCD(); },3000);
+    countdownTimer=setInterval(()=>{ updateLCD(); updateHero(); const ls=document.getElementById("last-sync-el"); if(lastSyncTime) ls.textContent="sync "+formatAgo(lastSyncTime); },1000);
+  } catch(e){
+    espIP="";
+    document.getElementById("connect-error").style.display="block";
+    btn.textContent="Connect to Device"; btn.disabled=false;
+  }
+}
+
+function doDisconnect(){
+  [pollTimer,lcdScrollTimer,countdownTimer].forEach(clearInterval);
+  espIP=""; lastSt=null;
+  document.getElementById("dashboard").style.display="none";
+  document.getElementById("connect-screen").style.display="flex";
+  document.getElementById("connect-btn").disabled=false;
+  document.getElementById("connect-btn").textContent="Connect to Device";
+  logEntry("Disconnected","warn");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PANEL TOGGLE
+// ═══════════════════════════════════════════════════════════════════════════
+function togPanel(h){
+  const b=h.nextElementSibling, ch=h.querySelector(".chev");
+  b.classList.toggle("col");
+  ch.textContent=b.classList.contains("col")?"▸":"▾";
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════════
+["s-city","s-country"].forEach(id=>{
+  const el=document.getElementById(id);
+  el.addEventListener("focus",()=>el.dataset.editing="1");
+  el.addEventListener("blur",()=>delete el.dataset.editing);
+});
+
+document.getElementById("ip-input").addEventListener("keydown",e=>{ if(e.key==="Enter") doConnect(); });
+
+const saved=localStorage.getItem("esp_ip");
+if(saved) document.getElementById("ip-input").value=saved;
+</script>
+</body>
+</html>
