@@ -212,6 +212,22 @@ input[type=range]{-webkit-appearance:none;height:4px;background:var(--b2);border
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--gold);cursor:pointer;}
 .range-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;}
 .range-val{font-size:11px;color:var(--gold);min-width:32px;text-align:right;}
+
+/* ── macOS Alarm UI ───────────────────────────────────────────────────────── */
+.alarm-wrap{background:var(--s1);border:1px solid var(--b2);border-radius:var(--r2);padding:1.25rem;margin-bottom:1.25rem;}
+.alarm-list{display:flex;flex-direction:column;gap:0;}
+.alarm-item{display:flex;align-items:center;justify-content:space-between;padding:1rem;border-bottom:1px solid var(--b1);transition:background 0.15s;}
+.alarm-item:last-child{border-bottom:none;}
+.alarm-item:hover{background:var(--s2);}
+.alarm-item-left{display:flex;flex-direction:column;gap:0.3rem;flex:1;}
+.alarm-time{font-family:var(--serif);font-size:1.8rem;font-weight:300;color:var(--gold2);line-height:1;}
+.alarm-label{font-size:11px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;}
+.alarm-item-right{display:flex;align-items:center;gap:0.8rem;}
+.alarm-delete{width:24px;height:24px;border-radius:50%;border:none;background:transparent;color:var(--red);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;opacity:0.4;}
+.alarm-delete:hover{opacity:1;background:rgba(217,95,95,0.1);}
+.alarm-empty{text-align:center;padding:2rem 1rem;color:var(--muted);font-size:12px;}
+.add-alarm-btn{background:var(--s2);border:1px solid var(--b2);border-radius:var(--r);padding:0.8rem;width:100%;margin-top:0.75rem;color:var(--gold);cursor:pointer;font-family:var(--mono);font-size:12px;font-weight:500;transition:all 0.15s;}
+.add-alarm-btn:hover{border-color:var(--gold-dim);background:rgba(201,160,82,0.08);}
 </style>
 </head>
 <body>
@@ -311,6 +327,15 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         <button class="btn btn-ghost btn-sm" onclick="doRefetch()" style="font-size:10px">Refetch</button>
       </div>
       <div class="prayer-grid" id="prayer-grid"></div>
+
+      <!-- macOS-Style Alarm Section -->
+      <div class="alarm-wrap">
+        <div class="section-label" style="margin-bottom:1rem;">Alarms</div>
+        <div class="alarm-list" id="alarm-list">
+          <div class="alarm-empty">No alarms set</div>
+        </div>
+        <button class="add-alarm-btn" onclick="showAddAlarm()">+ Add Alarm</button>
+      </div>
 
     </div>
 
@@ -478,7 +503,6 @@ let themeAuto = true;
 let forcedDay = null;
 let lastSyncTime = null;
 let lastPingMs = null;
-let customAlarmTimes = JSON.parse(localStorage.getItem("custom_alarm_times") || "{}");
 
 // ═══════════════════════════════════════════════════════════════════════════
 // UTILS
@@ -544,6 +568,81 @@ function showBanner(msg){
 function saveAlarms(){
   localStorage.setItem("alarm_states",JSON.stringify(alarmStates));
   localStorage.setItem("alarm_offsets",JSON.stringify(alarmOffsets));
+}
+
+let customAlarms = JSON.parse(localStorage.getItem("custom_alarms") || "[]");
+
+function saveCustomAlarms(){
+  localStorage.setItem("custom_alarms",JSON.stringify(customAlarms));
+}
+
+function renderAlarmList(){
+  const list = document.getElementById("alarm-list");
+  if(customAlarms.length === 0){
+    list.innerHTML = '<div class="alarm-empty">No alarms set</div>';
+    return;
+  }
+  list.innerHTML = "";
+  customAlarms.sort((a,b) => a.time.localeCompare(b.time));
+  customAlarms.forEach((alarm, idx) => {
+    const row = document.createElement("div");
+    row.className = "alarm-item";
+    row.innerHTML = `
+      <div class="alarm-item-left">
+        <div class="alarm-time">${alarm.time}</div>
+        <div class="alarm-label">${alarm.label}</div>
+      </div>
+      <div class="alarm-item-right">
+        <label class="tog">
+          <input type="checkbox" ${alarm.enabled?"checked":""} onchange="toggleCustomAlarm(${idx}, this.checked)">
+          <span class="tog-sl"></span>
+        </label>
+        <button class="alarm-delete" onclick="deleteCustomAlarm(${idx})" title="Delete alarm">−</button>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function showAddAlarm(){
+  const time = prompt("Enter alarm time (HH:MM, 24-hour format):", "06:00");
+  if(time === null) return;
+  if(!/^\d{1,2}:\d{2}$/.test(time.trim())){
+    toast("Invalid time format. Use HH:MM", "err");
+    return;
+  }
+  const [h, m] = time.trim().split(":").map(Number);
+  if(h < 0 || h > 23 || m < 0 || m > 59){
+    toast("Invalid time values", "err");
+    return;
+  }
+  const label = prompt("Alarm label (optional):", "Prayer Alarm") || "Prayer Alarm";
+  const newAlarm = {
+    time: String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0"),
+    label: label,
+    enabled: true
+  };
+  customAlarms.push(newAlarm);
+  saveCustomAlarms();
+  renderAlarmList();
+  toast("Alarm set to " + newAlarm.time, "ok");
+  logEntry("Alarm created: " + newAlarm.time + " - " + label, "info");
+}
+
+function toggleCustomAlarm(idx, enabled){
+  customAlarms[idx].enabled = enabled;
+  saveCustomAlarms();
+  toast(customAlarms[idx].label + " " + (enabled?"enabled":"disabled"), enabled?"ok":"info");
+  logEntry(customAlarms[idx].label + " " + (enabled?"enabled":"disabled"), enabled?"ok":"info");
+}
+
+function deleteCustomAlarm(idx){
+  const alarm = customAlarms[idx];
+  customAlarms.splice(idx, 1);
+  saveCustomAlarms();
+  renderAlarmList();
+  toast("Alarm deleted", "info");
+  logEntry("Alarm deleted: " + alarm.time + " - " + alarm.label, "info");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -690,7 +789,6 @@ function buildPrayerGrid(prayers){
     const isActive=(i===active&&i!==1);
     const on=alarmStates[i];
     const off=alarmOffsets[i]||0;
-    const customTime=customAlarmTimes[i]||"";
     const div=document.createElement("div");
     div.className="pc"+(isActive?" active":"");
     div.innerHTML=`
@@ -702,11 +800,7 @@ function buildPrayerGrid(prayers){
         <span class="pc-alarm-name">🔔 <span style="color:${on?"var(--gold)":"var(--muted)"};">${on?"ON":"OFF"}</span></span>
         <span class="pc-offset" title="Click to set offset" onclick="editOffset(${i})" id="off-${i}">+${off}m</span>
         <label class="tog"><input type="checkbox" ${on?"checked":""} onchange="toggleAlarm(${i},this.checked)"><span class="tog-sl"></span></label>
-      </div>
-      <button class="btn btn-ghost btn-sm" onclick="setCustomAlarmTime(${i})" style="width:100%;margin-top:0.5rem;font-size:10px;">
-        ⏰ Set Alarm ${customTime?'('+customTime+')':''}
-      </button>
-      `:``}
+      </div>`:``}
     `;
     grid.appendChild(div);
   });
@@ -728,25 +822,6 @@ function editOffset(i){
   saveAlarms();
   document.getElementById("off-"+i).textContent="+"+alarmOffsets[i]+"m";
   toast("Offset set to +"+alarmOffsets[i]+"min");
-}
-
-function setCustomAlarmTime(i){
-  const cur=customAlarmTimes[i]||"";
-  const v=prompt(`Set custom alarm time for ${PRAYER_NAMES[i]} (HH:MM format, or leave blank for prayer time):`, cur);
-  if(v===null) return;
-  const trimmed=v.trim();
-  if(trimmed===""){
-    delete customAlarmTimes[i];
-  } else {
-    if(!/^\d{1,2}:\d{2}$/.test(trimmed)){ toast("Invalid time format. Use HH:MM","err"); return; }
-    const [h,m]=trimmed.split(":").map(Number);
-    if(h<0||h>23||m<0||m>59){ toast("Invalid time values","err"); return; }
-    customAlarmTimes[i]=trimmed;
-  }
-  localStorage.setItem("custom_alarm_times",JSON.stringify(customAlarmTimes));
-  buildPrayerGrid(lastSt.prayers);
-  toast(customAlarmTimes[i]?`Alarm set to ${customAlarmTimes[i]}`:`Using prayer time for ${PRAYER_NAMES[i]}`,"ok");
-  logEntry(`Alarm time for ${PRAYER_NAMES[i]}: ${customAlarmTimes[i]||"prayer time"}`,"info");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -988,6 +1063,8 @@ document.getElementById("ip-input").addEventListener("keydown",e=>{ if(e.key==="
 
 const saved=localStorage.getItem("esp_ip");
 if(saved) document.getElementById("ip-input").value=saved;
+
+renderAlarmList();
 </script>
 </body>
 </html>
