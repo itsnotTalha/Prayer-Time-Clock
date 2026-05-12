@@ -213,6 +213,39 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .range-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;}
 .range-val{font-size:11px;color:var(--gold);min-width:32px;text-align:right;}
 
+/* ── Timer UI ─────────────────────────────────────────────────────────────── */
+.timer-wrap{background:var(--s1);border:1px solid var(--b2);border-radius:var(--r2);padding:1.25rem;margin-bottom:1.25rem;}
+.timer-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem;}
+.timer-title{font-family:var(--serif);font-size:1.3rem;font-weight:300;color:var(--gold);}
+.timer-mode-toggle{display:flex;gap:0.35rem;}
+.timer-mode-btn{background:var(--s2);border:1px solid var(--b1);color:var(--muted2);padding:0.35rem 0.75rem;border-radius:6px;font-size:10px;cursor:pointer;transition:all 0.15s;text-transform:uppercase;letter-spacing:0.08em;font-weight:500;}
+.timer-mode-btn.active{background:rgba(201,160,82,0.18);border-color:var(--gold);color:var(--gold);}
+.timer-mode-btn:hover{border-color:var(--b3);color:var(--text);}
+
+/* Water-level tank */
+.timer-tank-wrap{position:relative;margin-bottom:1.1rem;}
+.timer-tank{position:relative;width:100%;height:54px;background:var(--s2);border:1px solid var(--b2);border-radius:10px;overflow:hidden;}
+.timer-tank-fill{position:absolute;bottom:0;left:0;right:0;height:100%;background:linear-gradient(180deg,rgba(201,160,82,0.55) 0%,rgba(201,160,82,0.85) 100%);border-radius:10px;transform-origin:bottom;transition:none;}
+.timer-tank-wave{position:absolute;top:-3px;left:-50%;width:200%;height:8px;background:rgba(201,160,82,0.5);border-radius:50%;animation:waveAnim 2s linear infinite;}
+@keyframes waveAnim{0%{transform:translateX(0)}100%{transform:translateX(25%)}}
+.timer-tank-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+.timer-display{font-family:'Courier New',monospace;font-size:1.9rem;font-variant-numeric:tabular-nums;letter-spacing:0.12em;line-height:1;color:var(--text);text-shadow:0 1px 4px rgba(0,0,0,0.4);mix-blend-mode:normal;}
+.timer-pct-label{position:absolute;right:10px;bottom:6px;font-size:9px;color:rgba(201,160,82,0.8);letter-spacing:0.1em;text-transform:uppercase;pointer-events:none;}
+
+/* Duration row */
+.timer-duration-row{display:none;align-items:center;gap:0.5rem;margin-bottom:0.9rem;}
+.timer-duration-row.show{display:flex;}
+.timer-duration-row input{flex:1;text-align:center;font-size:1rem;padding:0.55rem 0.75rem;letter-spacing:0.1em;}
+.timer-duration-row .timer-btn{white-space:nowrap;padding:0.55rem 0.9rem;}
+
+.timer-controls{display:flex;gap:0.6rem;}
+.timer-btn{background:var(--gold);color:#08080b;border:none;padding:0.6rem 1.4rem;border-radius:var(--r);font-family:var(--mono);font-size:12px;font-weight:600;cursor:pointer;letter-spacing:0.06em;text-transform:uppercase;transition:opacity 0.15s,transform 0.1s;}
+.timer-btn:hover{opacity:0.88;}
+.timer-btn:active{transform:scale(0.98);}
+.timer-btn.secondary{background:transparent;border:1px solid var(--gold-dim);color:var(--gold);}
+.timer-btn.secondary:hover{border-color:var(--gold);}
+.timer-btn.running{background:var(--red);color:#fff;}
+
 /* ── macOS Alarm UI ───────────────────────────────────────────────────────── */
 .alarm-wrap{background:var(--s1);border:1px solid var(--b2);border-radius:var(--r2);padding:1.25rem;margin-bottom:1.25rem;}
 .alarm-list{display:flex;flex-direction:column;gap:0;}
@@ -228,6 +261,41 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .alarm-empty{text-align:center;padding:2rem 1rem;color:var(--muted);font-size:12px;}
 .add-alarm-btn{background:var(--s2);border:1px solid var(--b2);border-radius:var(--r);padding:0.8rem;width:100%;margin-top:0.75rem;color:var(--gold);cursor:pointer;font-family:var(--mono);font-size:12px;font-weight:500;transition:all 0.15s;}
 .add-alarm-btn:hover{border-color:var(--gold-dim);background:rgba(201,160,82,0.08);}
+
+/* ── Neopixel Visualizer & Controls ────────────────────────────────────────── */
+.neopixel-wrap{background:var(--s1);border:1px solid var(--b2);border-radius:var(--r2);padding:1.25rem;margin-bottom:1.25rem;}
+.neopixel-bar-container{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-bottom:1.25rem;height:28px;background:var(--b3);border:1px solid var(--b2);border-radius:4px;padding:2px;box-sizing:border-box;}
+.neopixel-segment{height:100%;border-radius:3px;background:#000;transition:background 0.2s ease;box-shadow:inset 0 1px 2px rgba(0,0,0,0.4),0 1px 2px rgba(255,255,255,0.1);}
+.neopixel-controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-bottom:1rem;}
+.neopixel-control-item{display:flex;flex-direction:column;gap:0.4rem;}
+.neopixel-control-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:500;}
+.neopixel-color-picker{display:flex;gap:0.5rem;align-items:center;}
+.neopixel-color-box{width:36px;height:28px;border:1px solid var(--b2);border-radius:6px;cursor:pointer;transition:border-color 0.2s;flex-shrink:0;}
+.neopixel-color-box:hover{border-color:var(--b3);}
+.alarm-quick-controls{display:flex;gap:0.5rem;}
+.alarm-quick-controls .btn{flex:1;padding:0.6rem;font-size:10px;}
+
+/* ── macOS Modal Dialog ────────────────────────────────────────────────────── */
+#alarm-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);backdrop-filter:blur(2px);z-index:1000;animation:fadein 0.15s ease-out;}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.modal-content{background:var(--s1);border:1px solid var(--b2);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.3);max-width:380px;width:90%;overflow:hidden;display:flex;flex-direction:column;animation:slideup 0.2s ease-out;}
+@keyframes slideup{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-header{padding:1.75rem 1.75rem 1rem;border-bottom:1px solid var(--b1);}
+.modal-title{font-family:var(--serif);font-size:1.6rem;font-weight:300;color:var(--gold2);line-height:1.2;}
+.modal-subtitle{font-size:11px;color:var(--muted);margin-top:0.35rem;letter-spacing:0.08em;text-transform:uppercase;}
+.modal-body{padding:1.5rem 1.75rem;display:flex;flex-direction:column;gap:1rem;}
+.modal-field{display:flex;flex-direction:column;gap:0.4rem;}
+.modal-label{font-size:11px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;font-weight:500;}
+.modal-input{background:var(--bg);border:1px solid var(--b2);color:var(--text);font-family:var(--mono);font-size:13px;padding:0.8rem;border-radius:8px;outline:none;transition:border-color 0.2s,box-shadow 0.2s;}
+.modal-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,160,82,0.12);}
+.modal-footer{padding:1.25rem 1.75rem;border-top:1px solid var(--b1);display:flex;gap:0.75rem;justify-content:flex-end;}
+.modal-btn{padding:0.65rem 1.25rem;border-radius:8px;border:none;font-family:var(--mono);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;letter-spacing:0.05em;text-transform:uppercase;}
+.modal-btn-primary{background:var(--gold);color:#08080b;}
+.modal-btn-primary:hover{opacity:0.88;}
+.modal-btn-primary:active{transform:scale(0.98);}
+.modal-btn-cancel{background:transparent;color:var(--muted2);border:1px solid var(--b2);}
+.modal-btn-cancel:hover{color:var(--text);border-color:var(--b3);}
+.modal-note{font-size:10px;color:var(--muted);text-align:center;padding:0 0.5rem;}
 </style>
 </head>
 <body>
@@ -321,12 +389,122 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         </div>
       </div>
 
+      <!-- Neopixel LED Strip -->
+      <div class="neopixel-wrap">
+        <div class="section-label">LED Strip Progress</div>
+        <div class="neopixel-bar-container" id="neopixel-segments-container">
+          <div class="neopixel-segment" id="led-0" style="background:#000;"></div>
+          <div class="neopixel-segment" id="led-1" style="background:#000;"></div>
+          <div class="neopixel-segment" id="led-2" style="background:#000;"></div>
+          <div class="neopixel-segment" id="led-3" style="background:#000;"></div>
+          <div class="neopixel-segment" id="led-4" style="background:#000;"></div>
+          <div class="neopixel-segment" id="led-5" style="background:#000;"></div>
+          <div class="neopixel-segment" id="led-6" style="background:#000;"></div>
+          <div class="neopixel-segment" id="led-7" style="background:#000;"></div>
+        </div>
+        
+        <div class="neopixel-controls">
+          <div class="neopixel-control-item">
+            <span class="neopixel-control-label">LED Strip</span>
+            <div style="display:flex;gap:0.5rem;align-items:center;">
+              <button id="neo-toggle-btn" class="btn" style="flex:1;padding:0.5rem;font-size:11px;" onclick="toggleNeopixel()">OFF</button>
+              <span id="neo-status-label" style="font-size:10px;color:var(--muted);">disabled</span>
+            </div>
+          </div>
+          
+          <div class="neopixel-control-item">
+            <span class="neopixel-control-label">Brightness</span>
+            <div style="display:flex;gap:0.3rem;align-items:center;">
+              <input type="range" id="neo-brightness" min="0" max="255" value="255" style="flex:1;" oninput="updateNeoBrightness()">
+              <span id="neo-brightness-val" style="font-size:10px;color:var(--gold);min-width:28px;text-align:right;">255</span>
+            </div>
+          </div>
+          
+          <div class="neopixel-control-item">
+            <span class="neopixel-control-label">Animation</span>
+            <select id="neo-anim-select" style="padding:0.5rem;border:1px solid var(--b2);background:var(--bg);color:var(--text);border-radius:var(--r);font-size:11px;" onchange="updateAnimationMode()">
+              <option value="0">Solid</option>
+              <option value="1">Pulse</option>
+              <option value="2">Chase</option>
+              <option value="3">Rainbow</option>
+            </select>
+          </div>
+          
+          <!-- Alarm tone selection moved to alarm section -->
+        </div>
+        
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;" id="prayer-color-grid"></div>
+        
+        <div class="alarm-quick-controls" style="margin-top:1rem;">
+          <button class="btn" onclick="startNeoAlarm()" style="background:rgba(217,95,95,0.8);">🔔 Test Alarm</button>
+          <button class="btn btn-ghost" onclick="stopNeoAlarm()">Stop</button>
+        </div>
+      </div>
+
       <!-- Prayer Grid with alarm toggles -->
       <div class="section-label">
         Prayer Times
         <button class="btn btn-ghost btn-sm" onclick="doRefetch()" style="font-size:10px">Refetch</button>
       </div>
       <div class="prayer-grid" id="prayer-grid"></div>
+
+      <!-- Stopwatch & Timer -->
+      <div class="timer-wrap">
+        <div class="timer-header">
+          <div class="timer-title" id="timer-title">Stopwatch</div>
+          <div class="timer-mode-toggle">
+            <button class="timer-mode-btn active" id="mode-stopwatch" onclick="setTimerMode(0)">Stopwatch</button>
+            <button class="timer-mode-btn" id="mode-timer" onclick="setTimerMode(1)">Timer</button>
+          </div>
+        </div>
+
+        <!-- Duration row (timer mode only) -->
+        <div class="timer-duration-row" id="timer-duration-row">
+          <input type="text" id="timer-duration" placeholder="MM:SS" maxlength="5" value="05:00" autocomplete="off">
+          <button class="timer-btn secondary" onclick="setTimerDuration()">Set</button>
+        </div>
+
+        <!-- Water tank -->
+        <div class="timer-tank-wrap">
+          <div class="timer-tank" id="timer-tank">
+            <div class="timer-tank-fill" id="timer-tank-fill" style="height:0%">
+              <div class="timer-tank-wave" id="timer-wave"></div>
+            </div>
+            <div class="timer-tank-overlay">
+              <div class="timer-display" id="timer-display">00:00</div>
+            </div>
+            <div class="timer-pct-label" id="timer-pct-label"></div>
+          </div>
+        </div>
+
+        <div class="timer-controls">
+          <button class="timer-btn" id="timer-start-btn" onclick="timerStartPause()" style="flex:1">Start</button>
+          <button class="timer-btn secondary" onclick="timerReset()">Reset</button>
+        </div>
+
+        <!-- Timer End Customization -->
+        <div style="margin-top:1.25rem;border-top:1px solid var(--b1);padding-top:1rem;">
+          <div class="section-label">End Animation</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">
+            <div class="field-group">
+              <div class="flabel">Style</div>
+              <select id="timer-end-mode" onchange="updateTimerEnd()">
+                <option value="0">Pulse (Breathe)</option>
+                <option value="1">Chase (Moving)</option>
+                <option value="2">Strobe (Blink)</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <div class="flabel">Color</div>
+              <input type="color" id="timer-end-color" value="#ff8000" onchange="updateTimerEnd()" style="width:100%;height:36px;padding:2px;cursor:pointer;">
+            </div>
+          </div>
+          <div class="field-group" style="margin-top:0.5rem;">
+            <div class="flabel">Duration: <span id="timer-end-duration-label">3s</span></div>
+            <input type="range" id="timer-end-duration" min="500" max="10000" step="500" value="3000" onchange="updateTimerEnd()" style="width:100%;">
+          </div>
+        </div>
+      </div>
 
       <!-- macOS-Style Alarm Section -->
       <div class="alarm-wrap">
@@ -335,6 +513,20 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           <div class="alarm-empty">No alarms set</div>
         </div>
         <button class="add-alarm-btn" onclick="showAddAlarm()">+ Add Alarm</button>
+
+        <!-- Alarm Tone Selection UI -->
+        <div style="margin-top:2rem;">
+          <div class="section-label">Alarm Melody &amp; Frequency</div>
+          <div id="melody-list" style="display:flex;gap:1.2rem;flex-wrap:wrap;margin-bottom:1.1rem;"></div>
+          <div class="field-group">
+            <div class="flabel">Frequency: <span id="melody-freq-val">1000Hz</span></div>
+            <input type="range" id="melody-freq" min="500" max="5000" step="50" value="1000" style="width:100%;" oninput="document.getElementById('melody-freq-val').textContent=this.value+'Hz'; melodyFreqChanged()">
+          </div>
+          <div class="field-group" style="margin-top:0.7em;">
+            <div class="flabel">Alarm Duration: <span id="melody-duration-val">4s</span></div>
+            <input type="range" id="melody-duration" min="1" max="30" value="4" style="width:100%;" oninput="document.getElementById('melody-duration-val').textContent=this.value+'s'; melodyDurationChanged()">
+          </div>
+        </div>
       </div>
 
     </div>
@@ -479,8 +671,143 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 <div id="notif-banner"></div>
 <div id="toast"></div>
 
+<!-- macOS Alarm Modal -->
+<div id="alarm-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">New Alarm</div>
+      <div class="modal-subtitle">Add a prayer or custom alarm</div>
+    </div>
+    <div class="modal-body">
+      <div class="modal-field">
+        <label class="modal-label">Time (HH:MM)</label>
+        <input type="text" id="modal-time" class="modal-input" placeholder="06:00" maxlength="5" autocomplete="off">
+        <div class="modal-note">24-hour format</div>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Label</label>
+        <input type="text" id="modal-label" class="modal-input" placeholder="Prayer Alarm" maxlength="24">
+        <div class="modal-note">Optional description</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-cancel" onclick="closeAlarmModal()">Cancel</button>
+      <button class="modal-btn modal-btn-primary" onclick="confirmAddAlarm()">Add Alarm</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ═══════════════════════════════════════════════════════════════════════════
+// ALARM MELODY SELECTION UI & LOGIC
+// ═══════════════════════════════════════════════════════════════════════════
+
+const MELODIES = [
+  { name: "Classic Beep", id: 0, notes: [ [1000,200],[1200,200],[1000,200],[1500,400] ] },
+  { name: "Ascending", id: 1, notes: [ [800,150],[1000,150],[1200,150],[1500,400] ] },
+  { name: "Descending", id: 2, notes: [ [2000,150],[1500,150],[1200,150],[900,400] ] },
+  { name: "Chirp", id: 3, notes: [ [1000,80],[2000,80],[1000,80],[2000,80],[1000,300] ] },
+  { name: "Twin Buzzer", id: 4, notes: [ [1000,100,1500],[1200,100,1700],[1000,100,1500],[1200,300,1700] ] },
+];
+let selectedMelody = 0;
+let selectedFreq = 2000;
+let selectedDuration = 4;
+function melodyDurationChanged() {
+  selectedDuration = parseInt(document.getElementById("melody-duration").value);
+  syncMelodyToESP();
+}
+
+function renderMelodyList() {
+  const list = document.getElementById("melody-list");
+  list.innerHTML = "";
+  MELODIES.forEach((mel, idx) => {
+    const el = document.createElement("div");
+    el.style.display = "flex";
+    el.style.flexDirection = "column";
+    el.style.alignItems = "center";
+    el.style.gap = "0.3rem";
+    el.style.minWidth = "90px";
+    el.innerHTML = `
+      <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:0.3em;">
+        <input type="radio" name="melody" value="${idx}" ${selectedMelody===idx?"checked":""} onchange="melodySelect(${idx})">
+        ${mel.name}
+      </label>
+      <button class="btn btn-ghost btn-sm" style="margin-top:0.2em;font-size:11px;" onclick="playMelodyPreview(${idx})">▶️</button>
+    `;
+    if(selectedMelody===idx) el.style.border = "1.5px solid var(--gold)";
+    el.style.borderRadius = "10px";
+    el.style.padding = "0.5em 0.7em";
+    list.appendChild(el);
+  });
+}
+
+function melodySelect(idx) {
+  selectedMelody = idx;
+  renderMelodyList();
+  syncMelodyToESP();
+}
+
+function melodyFreqChanged() {
+  selectedFreq = parseInt(document.getElementById("melody-freq").value);
+  syncMelodyToESP();
+}
+
+function playMelodyPreview(idx) {
+  const melody = MELODIES[idx];
+  const freq = parseInt(document.getElementById("melody-freq").value);
+  // Use Web Audio API for preview
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    let t = ctx.currentTime;
+    melody.notes.forEach(note => {
+      let f1 = note[0] || freq;
+      let dur = (note[1]||180)/1000;
+      let f2 = note[2];
+      // Main buzzer
+      const o1 = ctx.createOscillator();
+      o1.type = "square";
+      o1.frequency.setValueAtTime(f1, t);
+      const g1 = ctx.createGain();
+      g1.gain.setValueAtTime(0.18, t);
+      o1.connect(g1).connect(ctx.destination);
+      o1.start(t);
+      o1.stop(t+dur);
+      // Second buzzer (if present)
+      if(f2) {
+        const o2 = ctx.createOscillator();
+        o2.type = "square";
+        o2.frequency.setValueAtTime(f2, t);
+        const g2 = ctx.createGain();
+        g2.gain.setValueAtTime(0.13, t);
+        o2.connect(g2).connect(ctx.destination);
+        o2.start(t);
+        o2.stop(t+dur);
+      }
+      t += dur;
+    });
+  } catch(e) { toast("Audio not supported","err"); }
+}
+
+function syncMelodyToESP() {
+  // Send melody, freq, and duration to ESP
+  apiFetch("/neopixel/update", {
+    method: "POST",
+    body: JSON.stringify({
+      alarmMelody: selectedMelody,
+      alarmFreq: selectedFreq,
+      alarmDuration: selectedDuration
+    })
+  }).catch(()=>{});
+}
+
+// On load, render melody UI
+window.addEventListener("DOMContentLoaded", () => {
+  renderMelodyList();
+  document.getElementById("melody-freq").value = selectedFreq;
+  document.getElementById("melody-freq-val").textContent = selectedFreq+"Hz";
+  document.getElementById("melody-duration").value = selectedDuration;
+  document.getElementById("melody-duration-val").textContent = selectedDuration+"s";
+});
 // STATE
 // ═══════════════════════════════════════════════════════════════════════════
 const PRAYER_NAMES = ["Fajr","Sunrise","Dhuhr","Asr","Maghrib","Isha"];
@@ -605,26 +932,60 @@ function renderAlarmList(){
 }
 
 function showAddAlarm(){
-  const time = prompt("Enter alarm time (HH:MM, 24-hour format):", "06:00");
-  if(time === null) return;
-  if(!/^\d{1,2}:\d{2}$/.test(time.trim())){
+  const modal = document.getElementById("alarm-modal");
+  modal.style.display = "flex";
+  document.getElementById("modal-time").value = "";
+  document.getElementById("modal-label").value = "";
+  document.getElementById("modal-time").focus();
+  
+  // Handle Enter key to confirm
+  document.getElementById("modal-time").onkeydown = (e) => {
+    if(e.key === "Enter") document.getElementById("modal-label").focus();
+  };
+  document.getElementById("modal-label").onkeydown = (e) => {
+    if(e.key === "Enter") confirmAddAlarm();
+  };
+}
+
+function closeAlarmModal(){
+  document.getElementById("alarm-modal").style.display = "none";
+  document.getElementById("modal-time").onkeydown = null;
+  document.getElementById("modal-label").onkeydown = null;
+}
+
+function confirmAddAlarm(){
+  const time = document.getElementById("modal-time").value.trim();
+  const label = document.getElementById("modal-label").value.trim() || "Prayer Alarm";
+  
+  if(!time){
+    toast("Please enter a time", "err");
+    document.getElementById("modal-time").focus();
+    return;
+  }
+  
+  if(!/^\d{1,2}:\d{2}$/.test(time)){
     toast("Invalid time format. Use HH:MM", "err");
+    document.getElementById("modal-time").focus();
     return;
   }
-  const [h, m] = time.trim().split(":").map(Number);
+  
+  const [h, m] = time.split(":").map(Number);
   if(h < 0 || h > 23 || m < 0 || m > 59){
-    toast("Invalid time values", "err");
+    toast("Invalid time values (00:00 - 23:59)", "err");
+    document.getElementById("modal-time").focus();
     return;
   }
-  const label = prompt("Alarm label (optional):", "Prayer Alarm") || "Prayer Alarm";
+  
   const newAlarm = {
     time: String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0"),
     label: label,
     enabled: true
   };
+  
   customAlarms.push(newAlarm);
   saveCustomAlarms();
   renderAlarmList();
+  closeAlarmModal();
   toast("Alarm set to " + newAlarm.time, "ok");
   logEntry("Alarm created: " + newAlarm.time + " - " + label, "info");
 }
@@ -643,6 +1004,218 @@ function deleteCustomAlarm(idx){
   renderAlarmList();
   toast("Alarm deleted", "info");
   logEntry("Alarm deleted: " + alarm.time + " - " + alarm.label, "info");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TIMER / STOPWATCH  — purely local, rAF-driven, zero network delay
+// ═══════════════════════════════════════════════════════════════════════════
+let timerState = {
+  running: false,
+  mode: 0,           // 0=stopwatch, 1=timer
+  duration: 300000,  // ms
+  elapsed: 0,        // ms accumulated before current run
+  startWall: 0       // performance.now() when last started
+};
+let timerRafId = null;
+
+function formatTimerDisplay(ms) {
+  ms = Math.max(0, ms);
+  const secs = Math.floor(ms / 1000);
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  if (h > 0) return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function parseDurationInput(str) {
+  if (!str) return 0;
+  const parts = str.trim().split(':');
+  if (parts.length === 2) return ((parseInt(parts[0])||0)*60 + (parseInt(parts[1])||0)) * 1000;
+  return (parseInt(parts[0])||0) * 60 * 1000;
+}
+
+function getLiveElapsed() {
+  if (!timerState.running) return timerState.elapsed;
+  return timerState.elapsed + (performance.now() - timerState.startWall);
+}
+
+function timerRafLoop() {
+  renderTimerUI();
+  if (timerState.running) {
+    // Check if timer mode hit zero
+    if (timerState.mode === 1) {
+      const elapsed = getLiveElapsed();
+      if (elapsed >= timerState.duration) {
+        // Clamp and stop
+        timerState.elapsed = timerState.duration;
+        timerState.running = false;
+        renderTimerUI();
+        onTimerEnd();
+        return;
+      }
+    }
+    timerRafId = requestAnimationFrame(timerRafLoop);
+  }
+}
+
+function renderTimerUI() {
+  const elapsed = getLiveElapsed();
+  let displayMs, fillPct;
+
+  if (timerState.mode === 1) {
+    // TIMER: countdown, tank drains full→empty
+    const remaining = Math.max(0, timerState.duration - elapsed);
+    displayMs = remaining;
+    fillPct = timerState.duration > 0 ? (remaining / timerState.duration) * 100 : 0;
+  } else {
+    // STOPWATCH: count up, tank fills empty→full over 1000 seconds (matching firmware)
+    displayMs = elapsed;
+    fillPct = Math.min(100, (elapsed / 1000000) * 100);  // 1000 seconds = 1,000,000ms
+  }
+
+  document.getElementById('timer-display').textContent = formatTimerDisplay(displayMs);
+  document.getElementById('timer-tank-fill').style.height = fillPct.toFixed(2) + '%';
+  document.getElementById('timer-pct-label').textContent = fillPct > 1 ? Math.round(fillPct) + '%' : '';
+  document.getElementById('timer-start-btn').textContent = timerState.running ? 'Pause' : 'Start';
+  document.getElementById('timer-start-btn').classList.toggle('running', timerState.running);
+
+  // Keep neopixel preview in sync
+  if (timerState.running) {
+    neoState.progressPercent = fillPct;
+    updateNeopixelPreview();
+  }
+}
+
+function onTimerEnd() {
+  renderTimerUI();
+  toast('⏰ Timer done!', 'ok', 4000);
+  logEntry('Timer finished', 'ok');
+  // Browser beep
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    [0,200,400].forEach(delay => {
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value=880; o.type='sine';
+      g.gain.setValueAtTime(0,ctx.currentTime+delay/1000);
+      g.gain.linearRampToValueAtTime(0.3,ctx.currentTime+delay/1000+0.05);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+delay/1000+0.5);
+      o.start(ctx.currentTime+delay/1000);
+      o.stop(ctx.currentTime+delay/1000+0.5);
+    });
+  } catch(e){}
+  // Tell ESP to run its blink/buzz end sequence
+  apiFetch('/timer', {method:'POST', body:JSON.stringify({action:'timer_end'})}).catch(()=>{});
+}
+
+function setTimerMode(mode) {
+  if (timerState.running) return;
+  timerState.mode = mode;
+  timerState.elapsed = 0;
+  timerState.startWall = 0;
+  document.getElementById('mode-stopwatch').classList.toggle('active', mode===0);
+  document.getElementById('mode-timer').classList.toggle('active', mode===1);
+  document.getElementById('timer-title').textContent = mode===0 ? 'Stopwatch' : 'Timer';
+  const dr = document.getElementById('timer-duration-row');
+  mode===1 ? dr.classList.add('show') : dr.classList.remove('show');
+  renderTimerUI();
+  apiFetch('/timer', {method:'POST', body:JSON.stringify({action:'set_mode', mode})}).catch(()=>{});
+}
+
+function setTimerDuration() {
+  const ms = parseDurationInput(document.getElementById('timer-duration').value);
+  if (ms <= 0) { toast('Enter valid duration (MM:SS)','err'); return; }
+  timerState.duration = ms;
+  timerState.elapsed = 0;
+  renderTimerUI();
+  toast('Duration set to ' + formatTimerDisplay(ms), 'ok');
+  logEntry('Timer duration set to ' + formatTimerDisplay(ms), 'info');
+}
+
+async function timerStartPause() {
+  if (timerState.running) {
+    // PAUSE — snapshot elapsed
+    timerState.elapsed = getLiveElapsed();
+    timerState.running = false;
+    if (timerRafId) { cancelAnimationFrame(timerRafId); timerRafId = null; }
+    renderTimerUI();
+    logEntry('Timer paused', 'info');
+    apiFetch('/timer', {method:'POST', body:JSON.stringify({action:'pause', elapsed:timerState.elapsed})}).catch(()=>{});
+  } else {
+    // START — snap wall time right now, no await before loop begins
+    if (timerState.mode === 1 && timerState.elapsed >= timerState.duration) {
+      // Already at zero, reset first
+      timerState.elapsed = 0;
+    }
+    timerState.startWall = performance.now();
+    timerState.running = true;
+    timerRafId = requestAnimationFrame(timerRafLoop);
+    logEntry('Timer started', 'info');
+    // Sync to ESP in background
+    const body = {action:'start'};
+    if (timerState.mode === 1) body.duration = timerState.duration;
+    apiFetch('/timer', {method:'POST', body:JSON.stringify(body)}).catch(()=>{});
+  }
+}
+
+function timerReset() {
+  if (timerRafId) { cancelAnimationFrame(timerRafId); timerRafId = null; }
+  timerState.running = false;
+  timerState.elapsed = 0;
+  timerState.startWall = 0;
+  renderTimerUI();
+  logEntry('Timer reset', 'info');
+  apiFetch('/timer', {method:'POST', body:JSON.stringify({action:'reset'})}).catch(()=>{});
+}
+
+async function getTimerStatus() {
+  try {
+    const resp = await apiFetch('/timer/status');
+    // Only sync state if not currently running locally
+    if (!timerState.running) {
+      timerState.mode = resp.mode || 0;
+      timerState.duration = resp.duration || 300000;
+      timerState.elapsed = resp.elapsed || 0;
+      timerState.running = resp.running || false;
+      if (timerState.running) {
+        timerState.startWall = performance.now();
+        timerRafId = requestAnimationFrame(timerRafLoop);
+      }
+      document.getElementById('mode-stopwatch').classList.toggle('active', timerState.mode===0);
+      document.getElementById('mode-timer').classList.toggle('active', timerState.mode===1);
+      document.getElementById('timer-title').textContent = timerState.mode===0 ? 'Stopwatch' : 'Timer';
+      const dr = document.getElementById('timer-duration-row');
+      timerState.mode===1 ? dr.classList.add('show') : dr.classList.remove('show');
+      renderTimerUI();
+    }
+  } catch(e) {}
+}
+
+async function getTimerEndSettings() {
+  try {
+    const resp = await apiFetch('/timer/end');
+    document.getElementById('timer-end-mode').value = resp.animMode || 1;
+    const color = resp.color || 0xFF8000;
+    const r=(color>>16)&0xFF, g=(color>>8)&0xFF, b=color&0xFF;
+    document.getElementById('timer-end-color').value = '#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase();
+    const dur = resp.duration || 3000;
+    document.getElementById('timer-end-duration').value = dur;
+    document.getElementById('timer-end-duration-label').textContent = (dur/1000)+'s';
+  } catch(e) {}
+}
+
+async function updateTimerEnd() {
+  try {
+    const mode = parseInt(document.getElementById('timer-end-mode').value);
+    const hex = document.getElementById('timer-end-color').value;
+    const dur = parseInt(document.getElementById('timer-end-duration').value);
+    const r=parseInt(hex.substring(1,3),16), g=parseInt(hex.substring(3,5),16), b=parseInt(hex.substring(5,7),16);
+    const color = (r<<16)|(g<<8)|b;
+    await apiFetch('/timer/end', {method:'POST', body:JSON.stringify({animMode:mode, color, duration:dur})});
+    document.getElementById('timer-end-duration-label').textContent = (dur/1000)+'s';
+    logEntry('Timer end animation updated','info');
+  } catch(e) { toast('Failed to update timer end settings','err'); }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -683,7 +1256,7 @@ function getNextPrayer(prayers){
 function checkAutoTheme(){
   themeAuto=document.getElementById("s-autonight").checked;
   if(!themeAuto){ if(forcedDay!==null) applyTheme(forcedDay); return; }
-  if(!lastSt) return;
+  if(!lastSt || !lastSt.prayers) return;
   const sunrise=toMins(lastSt.prayers[1].time);
   const maghrib=toMins(lastSt.prayers[4].time);
   const nm=nowMins();
@@ -727,9 +1300,316 @@ function buildLcdRows(st){
 }
 
 function updateLCD(){
-  const [r1,r2]=buildLcdRows(lastSt);
-  document.getElementById("lcd-r1").textContent=r1;
-  document.getElementById("lcd-r2").textContent=r2;
+  apiFetch("/lcd/status")
+    .then(data => {
+      if (data && data.row1 !== undefined && data.row2 !== undefined) {
+        document.getElementById("lcd-r1").textContent = data.row1;
+        document.getElementById("lcd-r2").textContent = data.row2;
+      }
+    })
+    .catch(() => {
+      // Fallback to building locally if API fails
+      const [r1,r2]=buildLcdRows(lastSt);
+      document.getElementById("lcd-r1").textContent=r1;
+      document.getElementById("lcd-r2").textContent=r2;
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NEOPIXEL LED STRIP CONTROL
+// ═══════════════════════════════════════════════════════════════════════════
+
+let neoState = {
+  enabled: true,
+  brightness: 255,
+  animationMode: 0,  // 0=solid, 1=pulse, 2=chase, 3=rainbow
+  alarmAnimMode: 1,
+  alarmFreq: 1000,
+  alarmActive: false,
+  progressPercent: 0,
+  currentPrayerColor: 0,  // index into prayerColors
+  prayerColors: [0xFF6400, 0xFFC800, 0x0096C8, 0x6496FF, 0xC83200, 0x6432FF]
+};
+
+
+
+const PRAYER_COLOR_NAMES = ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"];
+
+function initNeopixelUI() {
+  // Build prayer color grid (compact version)
+  const colorGrid = document.getElementById("prayer-color-grid");
+  colorGrid.innerHTML = "";
+  neoState.prayerColors.forEach((color, idx) => {
+    const hexColor = "#" + color.toString(16).padStart(6, "0").toUpperCase();
+    const item = document.createElement("div");
+    item.style.display = "flex";
+    item.style.flexDirection = "column";
+    item.style.alignItems = "center";
+    item.style.gap = "0.3rem";
+    item.innerHTML = `
+      <label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">${PRAYER_COLOR_NAMES[idx]}</label>
+      <input type="color" class="neopixel-color-box" value="${hexColor}" id="color-${idx}" onchange="updatePrayerColor(${idx})" style="width:36px;height:24px;">
+    `;
+    colorGrid.appendChild(item);
+  });
+  
+  // Initialize LED toggle button state
+  updateLEDButtonState();
+  
+  updateNeopixelPreview();
+}
+
+function updateLEDButtonState() {
+  const btn = document.getElementById("neo-toggle-btn");
+  const statusLabel = document.getElementById("neo-status-label");
+  
+  if (btn && statusLabel) {
+    btn.textContent = neoState.enabled ? "ON" : "OFF";
+    btn.style.background = neoState.enabled ? "var(--green)" : "transparent";
+    btn.style.color = neoState.enabled ? "#08080b" : "var(--gold)";
+    btn.style.border = neoState.enabled ? "none" : "1px solid var(--gold-dim)";
+    statusLabel.textContent = neoState.enabled ? "enabled" : "disabled";
+  }
+}
+
+function hexToRgb(hex) {
+  // Convert 0xRRGGBB to rgb(r,g,b)
+  const r = (hex >> 16) & 0xFF;
+  const g = (hex >> 8) & 0xFF;
+  const b = hex & 0xFF;
+  return `rgb(${r},${g},${b})`;
+}
+
+// Animation cycle constants — MUST match prayer_clock.ino
+const PULSE_CYCLE_MS   = 2000;   // 2s breathing period
+const CHASE_CYCLE_MS   = 6400;   // 8 LEDs × 800ms each
+const RAINBOW_CYCLE_MS = 12800;  // 8 steps × 1600ms each
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GLOBAL LED ANIMATION ENGINE
+// Separates concerns: Progress → LedsOn, AnimationMode → Movement, Color → Hue
+// ═══════════════════════════════════════════════════════════════════════════
+
+function renderLedStrip(ledsOn, animationMode, color, brightness = 255) {
+  const ledCount = 8;
+  const colors = [];
+  const now = performance.now();
+  
+  // Extract RGB from color
+  const cr = (color >> 16) & 0xFF;
+  const cg = (color >> 8) & 0xFF;
+  const cb = color & 0xFF;
+  
+  if (animationMode === 0) {
+    // SOLID: Simple fill, no animation
+    for (let i = 0; i < ledCount; i++) {
+      if (i < ledsOn) {
+        colors.push(`rgb(${cr},${cg},${cb})`);
+      } else {
+        colors.push('rgb(10,10,10)');
+      }
+    }
+  } else if (animationMode === 1) {
+    // PULSE: Breathing effect on lit LEDs
+    const t = (now % PULSE_CYCLE_MS) / PULSE_CYCLE_MS;
+    const pulse = Math.sin(t * 2 * Math.PI) * 0.5 + 0.5;
+    const bright = Math.round(50 + pulse * 205);
+    for (let i = 0; i < ledCount; i++) {
+      if (i < ledsOn) {
+        colors.push(`rgb(${Math.round(cr*bright/255)},${Math.round(cg*bright/255)},${Math.round(cb*bright/255)})`);
+      } else {
+        colors.push('rgb(10,10,10)');
+      }
+    }
+  } else if (animationMode === 2) {
+    // CHASE: Moving dot across lit LEDs
+    const t = (now % CHASE_CYCLE_MS) / CHASE_CYCLE_MS;
+    const pos = Math.floor(t * ledCount) % ledCount;
+    for (let i = 0; i < ledCount; i++) {
+      if (i < ledsOn) {
+        colors.push(i === pos
+          ? `rgb(${cr},${cg},${cb})`
+          : `rgb(${Math.round(cr/5)},${Math.round(cg/5)},${Math.round(cb/5)})`);
+      } else {
+        colors.push('rgb(10,10,10)');
+      }
+    }
+  } else if (animationMode === 3) {
+    // RAINBOW: Cycle through prayer colors on lit LEDs
+    const t = (now % RAINBOW_CYCLE_MS) / RAINBOW_CYCLE_MS;
+    const offset = Math.floor(t * ledCount) % ledCount;
+    for (let i = 0; i < ledCount; i++) {
+      if (i < ledsOn) {
+        const c = neoState.prayerColors[(i + offset) % 6];
+        colors.push(`rgb(${(c>>16)&0xFF},${(c>>8)&0xFF},${c&0xFF})`);
+      } else {
+        colors.push('rgb(10,10,10)');
+      }
+    }
+  } else {
+    // Fallback to SOLID
+    for (let i = 0; i < ledCount; i++) {
+      if (i < ledsOn) {
+        colors.push(`rgb(${cr},${cg},${cb})`);
+      } else {
+        colors.push('rgb(10,10,10)');
+      }
+    }
+  }
+  
+  return colors;
+}
+
+function simulateAnimation() {
+  const ledCount = 8;
+  
+  // TIMER display: Use animation mode and cyan color
+  if (timerState.running) {
+    const elapsed = getLiveElapsed();
+    let progress = 0;
+    
+    if (timerState.mode === 1) {
+      // TIMER MODE: Tank drains from full to empty
+      const remaining = Math.max(0, timerState.duration - elapsed);
+      progress = timerState.duration > 0 ? (remaining / timerState.duration) * 100 : 0;
+    } else {
+      // STOPWATCH MODE: Tank fills from empty to full over 1000 seconds
+      progress = Math.min(100, (elapsed / 1000000) * 100);
+    }
+    progress = Math.max(0, Math.min(100, progress));
+    
+    const ledsOn = Math.ceil((progress / 100) * ledCount);
+    const timerColor = 0x00C8FF;  // Cyan
+    
+    // Use animation mode for timer too
+    return renderLedStrip(ledsOn, neoState.animationMode, timerColor);
+  }
+  
+  // PRAYER display: Use animation mode and prayer color
+  const currentColor = neoState.prayerColors[neoState.currentPrayerColor];
+  const ledsOn = Math.round((neoState.progressPercent / 100) * ledCount);
+  
+  return renderLedStrip(ledsOn, neoState.animationMode, currentColor);
+}
+
+function updateNeopixelPreview() {
+  const colors = simulateAnimation();
+  for (let i = 0; i < 8; i++) {
+    const segment = document.getElementById(`led-${i}`);
+    if (segment) {
+      segment.style.background = colors[i];
+    }
+  }
+}
+
+function updateNeoBrightness() {
+  neoState.brightness = parseInt(document.getElementById("neo-brightness").value);
+  document.getElementById("neo-brightness-val").textContent = neoState.brightness;
+  
+  apiFetch("/neopixel/update", {
+    method: "POST",
+    body: JSON.stringify({brightness: neoState.brightness})
+  }).catch(e => toast("Failed to update brightness", "err"));
+}
+
+async function toggleNeopixel() {
+  neoState.enabled = !neoState.enabled;
+  const btn = document.getElementById("neo-toggle-btn");
+  const statusLabel = document.getElementById("neo-status-label");
+  
+  btn.textContent = neoState.enabled ? "ON" : "OFF";
+  btn.style.background = neoState.enabled ? "var(--green)" : "transparent";
+  btn.style.color = neoState.enabled ? "#08080b" : "var(--gold)";
+  btn.style.border = neoState.enabled ? "none" : "1px solid var(--gold-dim)";
+  statusLabel.textContent = neoState.enabled ? "enabled" : "disabled";
+  
+  try {
+    await apiFetch("/neopixel/update", {
+      method: "POST",
+      body: JSON.stringify({enabled: neoState.enabled})
+    });
+    if (!neoState.enabled) {
+      // Clear all LED segments visually
+      for (let i = 0; i < 8; i++) {
+        document.getElementById(`led-${i}`).style.background = "rgb(0, 0, 0)";
+      }
+    } else {
+      // Re-update preview
+      updateNeopixelPreview();
+    }
+    logEntry("LED strip " + (neoState.enabled ? "turned on" : "turned off"), "info");
+  } catch (e) {
+    neoState.enabled = !neoState.enabled;
+    btn.textContent = neoState.enabled ? "ON" : "OFF";
+    toast("Failed to toggle LED", "err");
+  }
+}
+
+function updatePrayerColor(idx) {
+  const colorInput = document.getElementById(`color-${idx}`);
+  const hexColor = colorInput.value;
+  const r = parseInt(hexColor.substring(1, 3), 16);
+  const g = parseInt(hexColor.substring(3, 5), 16);
+  const b = parseInt(hexColor.substring(5, 7), 16);
+  
+  // Convert to uint32 (GRB format for neopixel)
+  neoState.prayerColors[idx] = (r << 16) | (g << 8) | b;
+  
+  // Update preview immediately
+  updateNeopixelPreview();
+  
+  // Send to device asynchronously
+  apiFetch("/neopixel/update", {
+    method: "POST",
+    body: JSON.stringify({prayerColors: neoState.prayerColors})
+  }).catch(e => toast("Failed to update color", "err"));
+}
+
+function updateAnimationMode() {
+  neoState.animationMode = parseInt(document.getElementById("neo-anim-select").value);
+  
+  // Update preview immediately
+  updateNeopixelPreview();
+  
+  // Send to device asynchronously
+  apiFetch("/neopixel/update", {
+    method: "POST",
+    body: JSON.stringify({animationMode: neoState.animationMode})
+  }).catch(e => toast("Failed to update animation", "err"));
+}
+
+function updateNeoAlarmSettings() {
+  neoState.alarmFreq = parseInt(document.getElementById("neo-alarm-freq").value);
+  
+  apiFetch("/neopixel/update", {
+    method: "POST",
+    body: JSON.stringify({
+      alarmAnimMode: neoState.alarmAnimMode,
+      alarmFreq: neoState.alarmFreq
+    })
+  }).catch(e => toast("Failed to update alarm settings", "err"));
+}
+
+function startNeoAlarm() {
+  apiFetch("/neopixel/alarm", {
+    method: "POST",
+    body: JSON.stringify({action: "start"})
+  }).then(() => {
+    neoState.alarmActive = true;
+    toast("Alarm started", "ok");
+    logEntry("Neopixel alarm started", "info");
+  }).catch(e => toast("Failed to start alarm", "err"));
+}
+
+function stopNeoAlarm() {
+  apiFetch("/neopixel/alarm", {
+    method: "POST",
+    body: JSON.stringify({action: "stop"})
+  }).then(() => {
+    neoState.alarmActive = false;
+    toast("Alarm stopped", "ok");
+    logEntry("Neopixel alarm stopped", "info");
+  }).catch(e => toast("Failed to stop alarm", "err"));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -868,6 +1748,29 @@ async function pollStatus(){
     document.getElementById("s-utc").value=st.utcOffsetH;
     document.getElementById("s-bl").checked=st.backlight;
     document.getElementById("s-12h").checked=st.use12h;
+    
+    // Fetch neopixel status (optional, don't fail if not available)
+    try {
+      const neoStatus = await apiFetch("/neopixel/status");
+      neoState.enabled = neoStatus.enabled !== undefined ? neoStatus.enabled : true;
+      neoState.brightness = neoStatus.brightness;
+      neoState.animationMode = neoStatus.animationMode;
+      neoState.alarmAnimMode = neoStatus.alarmAnimMode;
+      neoState.alarmFreq = neoStatus.alarmFreq;
+      if (neoStatus.prayerColors && neoStatus.prayerColors.length === 6) {
+        neoState.prayerColors = neoStatus.prayerColors;
+      }
+      neoState.progressPercent = neoStatus.progressPercent || 0;
+      neoState.currentPrayerColor = neoStatus.currentPrayerColor || 0;
+      document.getElementById("neo-brightness").value = neoState.brightness;
+      document.getElementById("neo-brightness-val").textContent = neoState.brightness;
+      document.getElementById("neo-alarm-freq").value = neoState.alarmFreq;
+      document.getElementById("neo-freq-val").textContent = neoState.alarmFreq + "Hz";
+      updateLEDButtonState();
+      updateNeopixelPreview();
+    } catch(e) {
+      // Neopixel endpoints may not be available on older firmware
+    }
 
   } catch(e){
     document.getElementById("conn-dot").className="dot err";
@@ -955,8 +1858,8 @@ async function doRefetch(){
 async function testAlarm(){
   toast("🔔 Alarm test triggered","info");
   logEntry("Alarm test sent","info");
-  // Also play a browser beep
   try{
+    // Local browser beep
     const ctx=new (window.AudioContext||window.webkitAudioContext)();
     const o=ctx.createOscillator(); const g=ctx.createGain();
     o.connect(g); g.connect(ctx.destination);
@@ -965,8 +1868,13 @@ async function testAlarm(){
     g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.8);
     o.start(); o.stop(ctx.currentTime+0.8);
   } catch(e){}
-  // Signal to ESP
-  try{ await apiFetch("/update",{method:"POST",body:JSON.stringify({testAlarm:true})}); } catch(e){}
+  // FIXED: Point to the actual test endpoint on the ESP32
+  try{ 
+    await apiFetch("/buzzer/test", {
+      method:"POST", 
+      body:JSON.stringify({frequency: 1000, duration: 1500})
+    }); 
+  } catch(e){}
 }
 
 async function sendLcdMsg(){
@@ -1018,12 +1926,21 @@ async function doConnect(){
     document.getElementById("conn-ip").textContent=ip;
     localStorage.setItem("esp_ip",ip);
     renderProfiles();
+    initNeopixelUI();
     if(Notification.permission==="default") Notification.requestPermission();
     await pollStatus();
+    await getTimerStatus();
+    await getTimerEndSettings();
     logEntry("Connected to "+ip,"ok");
     pollTimer=setInterval(pollStatus,5000);
     lcdScrollTimer=setInterval(()=>{ lcdScrollIdx=(lcdScrollIdx+1)%6; updateLCD(); },3000);
     countdownTimer=setInterval(()=>{ updateLCD(); updateHero(); const ls=document.getElementById("last-sync-el"); if(lastSyncTime) ls.textContent="sync "+formatAgo(lastSyncTime); },1000);
+    setInterval(getTimerStatus,5000);
+    
+    (function animationLoop() {
+      updateNeopixelPreview();
+      requestAnimationFrame(animationLoop);
+    })();
   } catch(e){
     espIP="";
     document.getElementById("connect-error").style.display="block";
@@ -1065,6 +1982,11 @@ const saved=localStorage.getItem("esp_ip");
 if(saved) document.getElementById("ip-input").value=saved;
 
 renderAlarmList();
+
+// Close modal on backdrop click
+document.getElementById("alarm-modal").addEventListener("click", (e) => {
+  if(e.target.id === "alarm-modal") closeAlarmModal();
+});
 </script>
 </body>
 </html>
