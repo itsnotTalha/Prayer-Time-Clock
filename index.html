@@ -429,8 +429,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
               <option value="3">Rainbow</option>
             </select>
           </div>
-          
-          <!-- Alarm tone selection moved to alarm section -->
         </div>
         
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;" id="prayer-color-grid"></div>
@@ -514,18 +512,36 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         </div>
         <button class="add-alarm-btn" onclick="showAddAlarm()">+ Add Alarm</button>
 
-        <!-- Alarm Tone Selection UI -->
+        <!-- Speaker Settings & Preset Melody -->
         <div style="margin-top:2rem;">
-          <div class="section-label">Alarm Melody &amp; Frequency</div>
-          <div id="melody-list" style="display:flex;gap:1.2rem;flex-wrap:wrap;margin-bottom:1.1rem;"></div>
+          <div class="section-label">Speaker Alarm Settings</div>
+          
           <div class="field-group">
-            <div class="flabel">Frequency: <span id="melody-freq-val">1000Hz</span></div>
-            <input type="range" id="melody-freq" min="500" max="5000" step="50" value="1000" style="width:100%;" oninput="document.getElementById('melody-freq-val').textContent=this.value+'Hz'; melodyFreqChanged()">
+            <div class="flabel">Alarm Volume: <span id="speaker-volume-val">100</span>%</div>
+            <div style="display:flex;gap:0.3rem;align-items:center;">
+              <input type="range" id="speaker-volume" min="0" max="150" value="100" style="flex:1;" oninput="updateSpeakerVolume()">
+              <span id="speaker-volume-val" style="font-size:10px;color:var(--gold);min-width:32px;text-align:right;">100</span>
+            </div>
           </div>
-          <div class="field-group" style="margin-top:0.7em;">
-            <div class="flabel">Alarm Duration: <span id="melody-duration-val">4s</span></div>
-            <input type="range" id="melody-duration" min="1" max="30" value="4" style="width:100%;" oninput="document.getElementById('melody-duration-val').textContent=this.value+'s'; melodyDurationChanged()">
+
+          <div class="field-group" style="margin-top:0.7rem;">
+            <div class="flabel">Alarm Duration: <span id="speaker-duration-val">30s</span></div>
+            <div style="display:flex;gap:0.3rem;align-items:center;">
+              <input type="range" id="speaker-duration" min="1" max="60" value="30" style="flex:1;" oninput="updateSpeakerDuration()">
+              <span style="font-size:10px;color:var(--gold);min-width:32px;text-align:right;" id="speaker-duration-val">30s</span>
+            </div>
           </div>
+
+          <div class="field-group" style="margin-top:0.7rem;">
+            <div class="flabel">Preset Melody</div>
+            <select id="speaker-melody" onchange="updateSpeakerPreset()">
+              <option value="0" selected>Bright Rise (8 notes)</option>
+              <option value="1">Gentle Echo (8 notes)</option>
+              <option value="2">Golden Call (12 notes)</option>
+            </select>
+          </div>
+
+          <button class="btn btn-ghost" style="width:100%;margin-top:1rem;" onclick="testSpeaker()">▶️ Test Melody</button>
         </div>
       </div>
 
@@ -593,7 +609,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
             <div class="flabel">UTC Offset (hours)</div>
             <input type="number" id="s-utc" value="6" min="-12" max="14">
           </div>
-          <button class="btn btn-ghost" style="width:100%" onclick="applyLocation()">Apply &amp; Refetch</button>
+          <button class="btn btn-ghost" style="width:100%" onclick="applyLocationDebounced()">Apply &amp; Refetch</button>
         </div>
       </div>
 
@@ -602,10 +618,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         <div class="panel-h" onclick="togPanel(this)">Display Settings <span class="chev">▾</span></div>
         <div class="panel-b">
           <div class="tog-row"><span class="tog-lbl">LCD Backlight</span>
-            <label class="tog"><input type="checkbox" id="s-bl" checked onchange="applyDisplay()"><span class="tog-sl"></span></label>
+            <label class="tog"><input type="checkbox" id="s-bl" checked onchange="applyDisplayDebounced()"><span class="tog-sl"></span></label>
           </div>
           <div class="tog-row"><span class="tog-lbl">12-Hour Clock</span>
-            <label class="tog"><input type="checkbox" id="s-12h" checked onchange="applyDisplay()"><span class="tog-sl"></span></label>
+            <label class="tog"><input type="checkbox" id="s-12h" checked onchange="applyDisplayDebounced()"><span class="tog-sl"></span></label>
           </div>
           <div class="tog-row"><span class="tog-lbl">Auto Day/Night Theme</span>
             <label class="tog"><input type="checkbox" id="s-autonight" checked onchange="checkAutoTheme()"><span class="tog-sl"></span></label>
@@ -680,9 +696,17 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     </div>
     <div class="modal-body">
       <div class="modal-field">
-        <label class="modal-label">Time (HH:MM)</label>
-        <input type="text" id="modal-time" class="modal-input" placeholder="06:00" maxlength="5" autocomplete="off">
-        <div class="modal-note">24-hour format</div>
+        <label class="modal-label">Time</label>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr 1fr;gap:0.5rem;align-items:center;">
+          <select id="modal-hour" class="modal-input"></select>
+          <div style="font-size:14px;color:var(--muted2);text-align:center;">:</div>
+          <select id="modal-minute" class="modal-input"></select>
+          <select id="modal-ampm" class="modal-input">
+            <option value="AM">AM</option>
+            <option value="PM">PM</option>
+          </select>
+        </div>
+        <div class="modal-note">12-hour format</div>
       </div>
       <div class="modal-field">
         <label class="modal-label">Label</label>
@@ -699,120 +723,117 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 
 <script>
 // ═══════════════════════════════════════════════════════════════════════════
-// ALARM MELODY SELECTION UI & LOGIC
+// PRESET SPEAKER MELODY
 // ═══════════════════════════════════════════════════════════════════════════
 
-const MELODIES = [
-  { name: "Classic Beep", id: 0, notes: [ [1000,200],[1200,200],[1000,200],[1500,400] ] },
-  { name: "Ascending", id: 1, notes: [ [800,150],[1000,150],[1200,150],[1500,400] ] },
-  { name: "Descending", id: 2, notes: [ [2000,150],[1500,150],[1200,150],[900,400] ] },
-  { name: "Chirp", id: 3, notes: [ [1000,80],[2000,80],[1000,80],[2000,80],[1000,300] ] },
-  { name: "Twin Buzzer", id: 4, notes: [ [1000,100,1500],[1200,100,1700],[1000,100,1500],[1200,300,1700] ] },
+const MELODY_PRESETS = [
+  {
+    name: "Bright Rise",
+    frequencies: [659, 784, 880, 659, 784, 988, 880, 784],
+    durations: [250, 250, 400, 250, 250, 500, 400, 700]
+  },
+  {
+    name: "Gentle Echo",
+    frequencies: [523, 587, 659, 523, 587, 659, 698, 659],
+    durations: [300, 300, 450, 300, 300, 450, 500, 600]
+  },
+  {
+    name: "Golden Call",
+    frequencies: [784, 659, 587, 659, 784, 988, 784, 659, 587, 659, 784, 988],
+    durations: [200, 200, 300, 200, 200, 350, 200, 200, 300, 200, 200, 500]
+  }
 ];
-let selectedMelody = 0;
-let selectedFreq = 2000;
-let selectedDuration = 4;
-function melodyDurationChanged() {
-  selectedDuration = parseInt(document.getElementById("melody-duration").value);
-  syncMelodyToESP();
+
+let speakerVolume = 100;
+let speakerDuration = 30;
+let speakerPresetIndex = 0;
+
+function updateSpeakerVolume() {
+  speakerVolume = parseInt(document.getElementById("speaker-volume").value);
+  document.getElementById("speaker-volume-val").textContent = speakerVolume;
+  syncSpeakerSettings();
 }
 
-function renderMelodyList() {
-  const list = document.getElementById("melody-list");
-  list.innerHTML = "";
-  MELODIES.forEach((mel, idx) => {
-    const el = document.createElement("div");
-    el.style.display = "flex";
-    el.style.flexDirection = "column";
-    el.style.alignItems = "center";
-    el.style.gap = "0.3rem";
-    el.style.minWidth = "90px";
-    el.innerHTML = `
-      <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:0.3em;">
-        <input type="radio" name="melody" value="${idx}" ${selectedMelody===idx?"checked":""} onchange="melodySelect(${idx})">
-        ${mel.name}
-      </label>
-      <button class="btn btn-ghost btn-sm" style="margin-top:0.2em;font-size:11px;" onclick="playMelodyPreview(${idx})">▶️</button>
-    `;
-    if(selectedMelody===idx) el.style.border = "1.5px solid var(--gold)";
-    el.style.borderRadius = "10px";
-    el.style.padding = "0.5em 0.7em";
-    list.appendChild(el);
-  });
+function updateSpeakerDuration() {
+  speakerDuration = parseInt(document.getElementById("speaker-duration").value);
+  document.getElementById("speaker-duration-val").textContent = speakerDuration + "s";
+  syncSpeakerSettings();
 }
 
-function melodySelect(idx) {
-  selectedMelody = idx;
-  renderMelodyList();
-  syncMelodyToESP();
+function updateSpeakerPreset() {
+  speakerPresetIndex = parseInt(document.getElementById("speaker-melody").value);
+  syncSpeakerMelody();
 }
 
-function melodyFreqChanged() {
-  selectedFreq = parseInt(document.getElementById("melody-freq").value);
-  syncMelodyToESP();
+function syncSpeakerSettings() {
+  apiFetch("/speaker/update", {
+    method: "POST",
+    body: JSON.stringify({
+      volume: speakerVolume,
+      duration: speakerDuration
+    })
+  }).catch(() => {});
 }
 
-function playMelodyPreview(idx) {
-  const melody = MELODIES[idx];
-  const freq = parseInt(document.getElementById("melody-freq").value);
-  // Use Web Audio API for preview
+function syncSpeakerMelody() {
+  const preset = MELODY_PRESETS[speakerPresetIndex] || MELODY_PRESETS[0];
+  apiFetch("/speaker/update", {
+    method: "POST",
+    body: JSON.stringify({
+      melody: preset.frequencies,
+      noteDurations: preset.durations
+    })
+  }).catch(() => {});
+}
+
+function testSpeaker() {
+  const preset = MELODY_PRESETS[speakerPresetIndex] || MELODY_PRESETS[0];
+  // Play Web Audio preview locally
   try {
-    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
     let t = ctx.currentTime;
-    melody.notes.forEach(note => {
-      let f1 = note[0] || freq;
-      let dur = (note[1]||180)/1000;
-      let f2 = note[2];
-      // Main buzzer
-      const o1 = ctx.createOscillator();
-      o1.type = "square";
-      o1.frequency.setValueAtTime(f1, t);
-      const g1 = ctx.createGain();
-      g1.gain.setValueAtTime(0.18, t);
-      o1.connect(g1).connect(ctx.destination);
-      o1.start(t);
-      o1.stop(t+dur);
-      // Second buzzer (if present)
-      if(f2) {
-        const o2 = ctx.createOscillator();
-        o2.type = "square";
-        o2.frequency.setValueAtTime(f2, t);
-        const g2 = ctx.createGain();
-        g2.gain.setValueAtTime(0.13, t);
-        o2.connect(g2).connect(ctx.destination);
-        o2.start(t);
-        o2.stop(t+dur);
+
+    preset.frequencies.forEach((freq, idx) => {
+      const dur = preset.durations[idx] / 1000;
+      if (freq > 0) {
+        const osc = ctx.createOscillator();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, t);
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.2, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + dur);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + dur);
       }
       t += dur;
     });
-  } catch(e) { toast("Audio not supported","err"); }
-}
 
-function syncMelodyToESP() {
-  // Send melody, freq, and duration to ESP
-  apiFetch("/neopixel/update", {
+    toast("Playing melody preview...", "ok");
+    logEntry("Melody preview played", "info");
+  } catch (e) {
+    toast("Audio not supported in this browser", "err");
+  }
+
+  // Send to ESP32
+  apiFetch("/speaker/test", {
     method: "POST",
     body: JSON.stringify({
-      alarmMelody: selectedMelody,
-      alarmFreq: selectedFreq,
-      alarmDuration: selectedDuration
+      volume: speakerVolume,
+      duration: speakerDuration,
+      melody: preset.frequencies,
+      noteDurations: preset.durations
     })
-  }).catch(()=>{});
+  }).catch(e => toast("Failed to test on device", "err"));
 }
 
-// On load, render melody UI
-window.addEventListener("DOMContentLoaded", () => {
-  renderMelodyList();
-  document.getElementById("melody-freq").value = selectedFreq;
-  document.getElementById("melody-freq-val").textContent = selectedFreq+"Hz";
-  document.getElementById("melody-duration").value = selectedDuration;
-  document.getElementById("melody-duration-val").textContent = selectedDuration+"s";
-});
 // STATE
 // ═══════════════════════════════════════════════════════════════════════════
 const PRAYER_NAMES = ["Fajr","Sunrise","Dhuhr","Asr","Maghrib","Isha"];
 let espIP = "";
 let pollTimer = null;
+let optionalPollTimer = null;
+let timerStatusTimer = null;
 let lcdScrollIdx = 0;
 let lcdScrollTimer = null;
 let countdownTimer = null;
@@ -869,6 +890,8 @@ function fmtCountdown(secs){
 
 function now12(){ const n=new Date(); let h=n.getHours(),m=n.getMinutes(),s=n.getSeconds(); const ap=h<12?"AM":"PM"; h=h%12||12; return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}${ap}`; }
 
+const LOG_MAX_ENTRIES = 60;
+
 function logEntry(msg, type="ok"){
   const el=document.getElementById("log-entries");
   const now=new Date();
@@ -877,7 +900,10 @@ function logEntry(msg, type="ok"){
   row.className="log-entry";
   row.innerHTML=`<span class="log-time">${ts}</span><span class="log-msg ${type}">${msg}</span>`;
   el.prepend(row);
-  while(el.children.length>60) el.removeChild(el.lastChild);
+  if(el.children.length>LOG_MAX_ENTRIES){
+    const toRemove=el.children.length-LOG_MAX_ENTRIES;
+    for(let i=0;i<toRemove;i++) el.removeChild(el.lastChild);
+  }
 }
 
 function toast(msg, type="ok", dur=2500){
@@ -897,14 +923,27 @@ function saveAlarms(){
   localStorage.setItem("alarm_offsets",JSON.stringify(alarmOffsets));
 }
 
-let customAlarms = JSON.parse(localStorage.getItem("custom_alarms") || "[]");
+let customAlarmCache = null;
+let customAlarmCacheTime = 0;
+const ALARM_CACHE_TTL = 500;
 
-function saveCustomAlarms(){
-  localStorage.setItem("custom_alarms",JSON.stringify(customAlarms));
+function getCustomAlarms(){
+  const now = Date.now();
+  if(customAlarmCache && (now - customAlarmCacheTime) < ALARM_CACHE_TTL) return customAlarmCache;
+  customAlarmCache = JSON.parse(localStorage.getItem("custom_alarms") || "[]");
+  customAlarmCacheTime = now;
+  return customAlarmCache;
+}
+
+function saveCustomAlarms(alarms){
+  customAlarmCache = alarms;
+  customAlarmCacheTime = Date.now();
+  localStorage.setItem("custom_alarms",JSON.stringify(alarms));
 }
 
 function renderAlarmList(){
   const list = document.getElementById("alarm-list");
+  const customAlarms = getCustomAlarms();
   if(customAlarms.length === 0){
     list.innerHTML = '<div class="alarm-empty">No alarms set</div>';
     return;
@@ -916,7 +955,7 @@ function renderAlarmList(){
     row.className = "alarm-item";
     row.innerHTML = `
       <div class="alarm-item-left">
-        <div class="alarm-time">${alarm.time}</div>
+        <div class="alarm-time">${formatAlarmTime(alarm.time)}</div>
         <div class="alarm-label">${alarm.label}</div>
       </div>
       <div class="alarm-item-right">
@@ -934,12 +973,20 @@ function renderAlarmList(){
 function showAddAlarm(){
   const modal = document.getElementById("alarm-modal");
   modal.style.display = "flex";
-  document.getElementById("modal-time").value = "";
+  document.getElementById("modal-hour").value = "06";
+  document.getElementById("modal-minute").value = "00";
+  document.getElementById("modal-ampm").value = "AM";
   document.getElementById("modal-label").value = "";
-  document.getElementById("modal-time").focus();
+  document.getElementById("modal-hour").focus();
   
   // Handle Enter key to confirm
-  document.getElementById("modal-time").onkeydown = (e) => {
+  document.getElementById("modal-hour").onkeydown = (e) => {
+    if(e.key === "Enter") document.getElementById("modal-label").focus();
+  };
+  document.getElementById("modal-minute").onkeydown = (e) => {
+    if(e.key === "Enter") document.getElementById("modal-label").focus();
+  };
+  document.getElementById("modal-ampm").onkeydown = (e) => {
     if(e.key === "Enter") document.getElementById("modal-label").focus();
   };
   document.getElementById("modal-label").onkeydown = (e) => {
@@ -949,32 +996,30 @@ function showAddAlarm(){
 
 function closeAlarmModal(){
   document.getElementById("alarm-modal").style.display = "none";
-  document.getElementById("modal-time").onkeydown = null;
+  document.getElementById("modal-hour").onkeydown = null;
+  document.getElementById("modal-minute").onkeydown = null;
+  document.getElementById("modal-ampm").onkeydown = null;
   document.getElementById("modal-label").onkeydown = null;
 }
 
 function confirmAddAlarm(){
-  const time = document.getElementById("modal-time").value.trim();
+  const hStr = document.getElementById("modal-hour").value;
+  const mStr = document.getElementById("modal-minute").value;
+  const ampm = document.getElementById("modal-ampm").value;
+  const time = `${hStr}:${mStr} ${ampm}`;
   const label = document.getElementById("modal-label").value.trim() || "Prayer Alarm";
   
-  if(!time){
-    toast("Please enter a time", "err");
-    document.getElementById("modal-time").focus();
+  const [hPart, rest] = time.split(":");
+  const [mPart, ap] = rest.split(" ");
+  const h12 = Number(hPart);
+  const m = Number(mPart);
+  if(h12 < 1 || h12 > 12 || m < 0 || m > 59 || (ap !== "AM" && ap !== "PM")){
+    toast("Invalid time values (01:00 - 12:59)", "err");
+    document.getElementById("modal-hour").focus();
     return;
   }
-  
-  if(!/^\d{1,2}:\d{2}$/.test(time)){
-    toast("Invalid time format. Use HH:MM", "err");
-    document.getElementById("modal-time").focus();
-    return;
-  }
-  
-  const [h, m] = time.split(":").map(Number);
-  if(h < 0 || h > 23 || m < 0 || m > 59){
-    toast("Invalid time values (00:00 - 23:59)", "err");
-    document.getElementById("modal-time").focus();
-    return;
-  }
+
+  const h = (h12 % 12) + (ap === "PM" ? 12 : 0);
   
   const newAlarm = {
     time: String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0"),
@@ -982,25 +1027,68 @@ function confirmAddAlarm(){
     enabled: true
   };
   
-  customAlarms.push(newAlarm);
-  saveCustomAlarms();
+  const alarms = getCustomAlarms();
+  alarms.push(newAlarm);
+  saveCustomAlarms(alarms);
   renderAlarmList();
   closeAlarmModal();
-  toast("Alarm set to " + newAlarm.time, "ok");
-  logEntry("Alarm created: " + newAlarm.time + " - " + label, "info");
+  toast("Alarm set to " + formatAlarmTime(newAlarm.time), "ok");
+  logEntry("Alarm created: " + formatAlarmTime(newAlarm.time) + " - " + label, "info");
+}
+
+function formatAlarmTime(time24){
+  const [hStr, mStr] = time24.split(":");
+  const h = Number(hStr);
+  if (Number.isNaN(h)) return time24;
+  const ap = h < 12 ? "AM" : "PM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${String(h12).padStart(2,"0")}:${mStr} ${ap}`;
+}
+
+function initAlarmTimeSelects() {
+  const hourEl = document.getElementById("modal-hour");
+  const minEl = document.getElementById("modal-minute");
+  const ampmEl = document.getElementById("modal-ampm");
+  if (!hourEl || !minEl) return;
+  if (hourEl.options.length === 0) {
+    for (let h = 1; h <= 12; h++) {
+      const opt = document.createElement("option");
+      opt.value = String(h).padStart(2, "0");
+      opt.textContent = String(h).padStart(2, "0");
+      hourEl.appendChild(opt);
+    }
+  }
+  if (minEl.options.length === 0) {
+    for (let m = 0; m < 60; m++) {
+      const opt = document.createElement("option");
+      opt.value = String(m).padStart(2, "0");
+      opt.textContent = String(m).padStart(2, "0");
+      minEl.appendChild(opt);
+    }
+  }
+  if (ampmEl && ampmEl.options.length === 0) {
+    ["AM", "PM"].forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v;
+      opt.textContent = v;
+      ampmEl.appendChild(opt);
+    });
+  }
 }
 
 function toggleCustomAlarm(idx, enabled){
-  customAlarms[idx].enabled = enabled;
-  saveCustomAlarms();
-  toast(customAlarms[idx].label + " " + (enabled?"enabled":"disabled"), enabled?"ok":"info");
-  logEntry(customAlarms[idx].label + " " + (enabled?"enabled":"disabled"), enabled?"ok":"info");
+  const alarms = getCustomAlarms();
+  alarms[idx].enabled = enabled;
+  saveCustomAlarms(alarms);
+  toast(alarms[idx].label + " " + (enabled?"enabled":"disabled"), enabled?"ok":"info");
+  logEntry(alarms[idx].label + " " + (enabled?"enabled":"disabled"), enabled?"ok":"info");
 }
 
 function deleteCustomAlarm(idx){
-  const alarm = customAlarms[idx];
-  customAlarms.splice(idx, 1);
-  saveCustomAlarms();
+  const alarms = getCustomAlarms();
+  const alarm = alarms[idx];
+  alarms.splice(idx, 1);
+  saveCustomAlarms(alarms);
   renderAlarmList();
   toast("Alarm deleted", "info");
   logEntry("Alarm deleted: " + alarm.time + " - " + alarm.label, "info");
@@ -1331,8 +1419,6 @@ let neoState = {
   prayerColors: [0xFF6400, 0xFFC800, 0x0096C8, 0x6496FF, 0xC83200, 0x6432FF]
 };
 
-
-
 const PRAYER_COLOR_NAMES = ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"];
 
 function initNeopixelUI() {
@@ -1578,18 +1664,6 @@ function updateAnimationMode() {
   }).catch(e => toast("Failed to update animation", "err"));
 }
 
-function updateNeoAlarmSettings() {
-  neoState.alarmFreq = parseInt(document.getElementById("neo-alarm-freq").value);
-  
-  apiFetch("/neopixel/update", {
-    method: "POST",
-    body: JSON.stringify({
-      alarmAnimMode: neoState.alarmAnimMode,
-      alarmFreq: neoState.alarmFreq
-    })
-  }).catch(e => toast("Failed to update alarm settings", "err"));
-}
-
 function startNeoAlarm() {
   apiFetch("/neopixel/alarm", {
     method: "POST",
@@ -1748,35 +1822,45 @@ async function pollStatus(){
     document.getElementById("s-utc").value=st.utcOffsetH;
     document.getElementById("s-bl").checked=st.backlight;
     document.getElementById("s-12h").checked=st.use12h;
-    
-    // Fetch neopixel status (optional, don't fail if not available)
-    try {
-      const neoStatus = await apiFetch("/neopixel/status");
-      neoState.enabled = neoStatus.enabled !== undefined ? neoStatus.enabled : true;
-      neoState.brightness = neoStatus.brightness;
-      neoState.animationMode = neoStatus.animationMode;
-      neoState.alarmAnimMode = neoStatus.alarmAnimMode;
-      neoState.alarmFreq = neoStatus.alarmFreq;
-      if (neoStatus.prayerColors && neoStatus.prayerColors.length === 6) {
-        neoState.prayerColors = neoStatus.prayerColors;
-      }
-      neoState.progressPercent = neoStatus.progressPercent || 0;
-      neoState.currentPrayerColor = neoStatus.currentPrayerColor || 0;
-      document.getElementById("neo-brightness").value = neoState.brightness;
-      document.getElementById("neo-brightness-val").textContent = neoState.brightness;
-      document.getElementById("neo-alarm-freq").value = neoState.alarmFreq;
-      document.getElementById("neo-freq-val").textContent = neoState.alarmFreq + "Hz";
-      updateLEDButtonState();
-      updateNeopixelPreview();
-    } catch(e) {
-      // Neopixel endpoints may not be available on older firmware
-    }
-
   } catch(e){
     document.getElementById("conn-dot").className="dot err";
     document.getElementById("conn-text").textContent="Offline";
     document.getElementById("conn-ping").textContent="";
     logEntry("Connection lost","err");
+  }
+}
+
+async function pollOptionalStatus(){
+  // Fetch neopixel status (optional, don't fail if not available)
+  try {
+    const neoStatus = await apiFetch("/neopixel/status");
+    neoState.enabled = neoStatus.enabled !== undefined ? neoStatus.enabled : true;
+    neoState.brightness = neoStatus.brightness;
+    neoState.animationMode = neoStatus.animationMode;
+    if (neoStatus.prayerColors && neoStatus.prayerColors.length === 6) {
+      neoState.prayerColors = neoStatus.prayerColors;
+    }
+    neoState.progressPercent = neoStatus.progressPercent || 0;
+    neoState.currentPrayerColor = neoStatus.currentPrayerColor || 0;
+    document.getElementById("neo-brightness").value = neoState.brightness;
+    document.getElementById("neo-brightness-val").textContent = neoState.brightness;
+    updateLEDButtonState();
+    updateNeopixelPreview();
+  } catch(e) {
+    // Neopixel endpoints may not be available on older firmware
+  }
+
+  // Fetch speaker status
+  try {
+    const speakerStatus = await apiFetch("/speaker/status");
+    speakerVolume = speakerStatus.volume || 100;
+    speakerDuration = speakerStatus.duration || 30;
+    document.getElementById("speaker-volume").value = speakerVolume;
+    document.getElementById("speaker-volume-val").textContent = speakerVolume;
+    document.getElementById("speaker-duration").value = speakerDuration;
+    document.getElementById("speaker-duration-val").textContent = speakerDuration + "s";
+  } catch(e) {
+    // Speaker endpoints may not be available on older firmware
   }
 }
 
@@ -1839,10 +1923,39 @@ async function applyLocation(){
   catch(e){ toast("Update failed","err"); logEntry("Location update failed","err"); }
 }
 
+let settingsUpdateTimeout = null;
+
+async function applyLocationDebounced(){
+  if (settingsUpdateTimeout) clearTimeout(settingsUpdateTimeout);
+  settingsUpdateTimeout = setTimeout(async () => {
+    const body={city:document.getElementById("s-city").value.trim(),country:document.getElementById("s-country").value.trim(),method:parseInt(document.getElementById("s-method").value),school:parseInt(document.getElementById("s-school").value),utcOffsetH:parseInt(document.getElementById("s-utc").value)};
+    try{ await apiFetch("/update",{method:"POST",body:JSON.stringify(body)}); toast("Location updated ✓"); logEntry("Location → "+body.city+", "+body.country); setTimeout(pollStatus,500); }
+    catch(e){ toast("Update failed","err"); logEntry("Location update failed","err"); }
+  }, 300);
+}
+
 async function applyDisplay(){
   const body={backlight:document.getElementById("s-bl").checked,use12h:document.getElementById("s-12h").checked};
   try{ await apiFetch("/update",{method:"POST",body:JSON.stringify(body)}); toast("Display updated"); logEntry("Display settings updated","info"); }
   catch(e){ toast("Failed","err"); }
+}
+
+let displayTimeout = null;
+function applyDisplayDebounced(){
+  if (displayTimeout) clearTimeout(displayTimeout);
+  displayTimeout = setTimeout(() => { applyDisplay(); }, 300);
+}
+
+let requestBatch = {};
+let batchTimeout = null;
+function batchApiUpdate(key, data) {
+  requestBatch[key] = data;
+  if (batchTimeout) clearTimeout(batchTimeout);
+  batchTimeout = setTimeout(() => {
+    const combined = Object.values(requestBatch).reduce((a,b)=>({ ...a, ...b }), {});
+    apiFetch("/update", { method: "POST", body: JSON.stringify(combined) }).catch(()=>{});
+    requestBatch = {};
+  }, 100);
 }
 
 async function toggleBacklight(){
@@ -1851,7 +1964,7 @@ async function toggleBacklight(){
 }
 
 async function doRefetch(){
-  try{ await apiFetch("/refetch"); toast("Prayer times refreshed ✓"); logEntry("Prayer times refetched"); setTimeout(pollStatus,1000); }
+  try{ await apiFetch("/refetch"); toast("Prayer times refreshed ✓"); logEntry("Prayer times refetched"); setTimeout(pollStatus,500); }
   catch(e){ toast("Refetch failed","err"); logEntry("Refetch failed","err"); }
 }
 
@@ -1932,10 +2045,11 @@ async function doConnect(){
     await getTimerStatus();
     await getTimerEndSettings();
     logEntry("Connected to "+ip,"ok");
-    pollTimer=setInterval(pollStatus,5000);
+    pollTimer=setInterval(pollStatus,2000);
+    optionalPollTimer=setInterval(pollOptionalStatus,5000);
     lcdScrollTimer=setInterval(()=>{ lcdScrollIdx=(lcdScrollIdx+1)%6; updateLCD(); },3000);
     countdownTimer=setInterval(()=>{ updateLCD(); updateHero(); const ls=document.getElementById("last-sync-el"); if(lastSyncTime) ls.textContent="sync "+formatAgo(lastSyncTime); },1000);
-    setInterval(getTimerStatus,5000);
+    timerStatusTimer=setInterval(getTimerStatus,5000);
     
     (function animationLoop() {
       updateNeopixelPreview();
@@ -1949,7 +2063,7 @@ async function doConnect(){
 }
 
 function doDisconnect(){
-  [pollTimer,lcdScrollTimer,countdownTimer].forEach(clearInterval);
+  [pollTimer,optionalPollTimer,lcdScrollTimer,countdownTimer,timerStatusTimer].forEach(clearInterval);
   espIP=""; lastSt=null;
   document.getElementById("dashboard").style.display="none";
   document.getElementById("connect-screen").style.display="flex";
@@ -1967,6 +2081,21 @@ function togPanel(h){
   ch.textContent=b.classList.contains("col")?"▸":"▾";
 }
 
+function enableLazyPanels(){
+  const panels = document.querySelectorAll(".panel");
+  panels.forEach(panel => {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.dataset.loaded = "true";
+          observer.unobserve(entry.target);
+        }
+      });
+    });
+    observer.observe(panel);
+  });
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1979,7 +2108,11 @@ function togPanel(h){
 document.getElementById("ip-input").addEventListener("keydown",e=>{ if(e.key==="Enter") doConnect(); });
 
 const saved=localStorage.getItem("esp_ip");
-if(saved) document.getElementById("ip-input").value=saved;
+const defaultIp="192.168.0.69";
+document.getElementById("ip-input").value=saved || defaultIp;
+
+initAlarmTimeSelects();
+window.addEventListener("load", enableLazyPanels);
 
 renderAlarmList();
 
