@@ -1,4 +1,3 @@
-
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -18,9 +17,9 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 #define NEOPIXEL_PIN    12      // GPIO12 for neopixel
 #define NEOPIXEL_COUNT  8       // 8 LEDs
-#define BUZZER_PIN1     27      // GPIO27 for buzzer 1
-#define BUZZER_PIN2     26      // GPIO26 for buzzer 2
-#define BUTTON_PIN      33      // GPIO35 for momentary button
+#define SPEAKER_PIN     25      // GPIO25 for speaker
+#define BUZZER_PIN      26      // GPIO26 for active buzzer
+#define BUTTON_PIN      33      // GPIO33 for momentary button
 
 Adafruit_NeoPixel pixels(NEOPIXEL_COUNT, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -40,35 +39,57 @@ struct {
   int brightness = 255;
   int animationMode = 0;  // 0=solid, 1=pulse, 2=chase, 3=rainbow
   int alarmAnimMode = 1;  // 0=pulse, 1=chase, 2=strobe
-  int alarmFreq = 2000;   // Hz (max 5000)
-  int alarmMelody = 0;    // Melody index
-  int alarmDuration = 4;  // Duration in seconds
   bool alarmActive = false;
   unsigned long alarmStartTime = 0;
   float progressPercent = 0;
   int currentPrayerColor = 0;
 } neoState;
 
-// Buzzer state
-struct {
-  bool active = false;
-  unsigned long startTime = 0;
-  int frequency = 2000; // Default to 2kHz
-} buzzerState;
-
-// ─── MELODY PLAYBACK STATE (Non-blocking) ────────────────────────────────────
+// Speaker state with preset melody
 struct {
   bool isPlaying = false;
-  int melodyIdx = 0;
-  int baseFreq = 1000;
-  int repeat = 0;
-  int currentRepeat = 0;
   int currentNote = 0;
-  unsigned long startTime = 0;
-  unsigned long maxDuration = 0;  // in ms
   unsigned long noteStartTime = 0;
-  unsigned long totalElapsed = 0;
-} melodyState;
+  int volume = 100;           // 0-150
+  int duration = 30;          // seconds
+  unsigned long playStartTime = 0;
+} speakerState;
+
+// Preset melody frequencies and durations
+const int MAX_MELODY_LEN = 32;
+int melody[MAX_MELODY_LEN] = {
+  659, 784, 880, 659,
+  784, 988, 880, 784
+};
+
+int noteDurations[MAX_MELODY_LEN] = {
+  250, 250, 400, 250,
+  250, 500, 400, 700
+};
+
+int melodyLength = 8;
+
+// Buzzer state
+struct {
+  bool isBuzzing = false;
+  unsigned long pulseStartTime = 0;
+  int pulseCount = 0;
+  int targetPulses = 0;
+  bool state = false;
+} buzzerState;
+
+// ─── Custom Alarms ────────────────────────────────────────────────────────
+#define MAX_ALARMS 10
+struct AlarmEntry {
+  int hour;
+  int minute;
+  bool enabled;
+  bool valid;
+  char label[25];
+};
+AlarmEntry customAlarms[MAX_ALARMS];
+int customAlarmCount = 0;
+static int lastAlarmTriggeredMinute = -1;
 
 // LCD state
 String lcdRow1 = "                ";
@@ -90,6 +111,8 @@ IPAddress secondaryDNS(8, 8, 4, 4);
 
 const unsigned long SCROLL_INTERVAL = 3000UL;
 const unsigned long CLOCK_INTERVAL  = 1000UL;
+const unsigned long WIFI_RETRY_INTERVAL = 10000UL;
+const int BUZZ_NOTIFY_MS = 1500;
 
 // ─── dynamic config ──────────────────────────────────────────────────────────
 
@@ -131,6 +154,10 @@ unsigned long timerEndStartTime = 0;
 int           timerEndAnimMode = 3;
 uint32_t      timerEndColor    = 0xFF8000;
 unsigned long timerEndDuration = 3000;
+
+bool          wifiWasConnected  = false;
+bool          timeSynced        = false;
+unsigned long lastWiFiAttempt   = 0;
 
 // ─── IMPROVED BUTTON HANDLING ─────────────────────────────────────────────────
 bool          buttonPressed    = false;
@@ -444,201 +471,177 @@ void neoOff() {
   pixels.show();
 }
 
-// ─── BUZZER & MELODY FUNCTIONS (NON-BLOCKING) ────────────────────────────────
+// ─── BUZZER CONTROL (ACTIVE BUZZER) ────────────────────────────────────────
 
-typedef struct {
-  int freq1;
-  int duration;
-  int freq2;
-} MelodyNote;
-
-const MelodyNote ALARM_MELODIES[5][8] = {
-  // Classic Beep
-  { {1000,200,0}, {1200,200,0}, {1000,200,0}, {1500,400,0}, {0,0,0} },
-  // Ascending
-  { {800,150,0}, {1000,150,0}, {1200,150,0}, {1500,400,0}, {0,0,0} },
-  // Descending
-  { {2000,150,0}, {1500,150,0}, {1200,150,0}, {900,400,0}, {0,0,0} },
-  // Chirp
-  { {1000,80,0}, {2000,80,0}, {1000,80,0}, {2000,80,0}, {1000,300,0}, {0,0,0} },
-  // Twin Buzzer
-  { {1000,100,1500}, {1200,100,1700}, {1000,100,1500}, {1200,300,1700}, {0,0,0} }
-};
-
-void buzzerStop() {
-  buzzerState.active = false;
-  noTone(BUZZER_PIN1);
-  noTone(BUZZER_PIN2);
+void buzzerPulse(int pulses) {
+  buzzerState.targetPulses = pulses;
+  buzzerState.pulseCount = 0;
+  buzzerState.isBuzzing = true;
+  buzzerState.pulseStartTime = millis();
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// *** NEW: Non-blocking melody playback ***
-// ═══════════════════════════════════════════════════════════════════════════════
-void startMelodyAsync(int melodyIdx, int baseFreq, int repeat, int totalDurationSec) {
-  melodyIdx = constrain(melodyIdx, 0, 4);
-  melodyState.isPlaying = true;
-  melodyState.melodyIdx = melodyIdx;
-  melodyState.baseFreq = baseFreq;
-  melodyState.repeat = repeat;
-  melodyState.currentRepeat = 0;
-  melodyState.currentNote = 0;
-  melodyState.startTime = millis();
-  melodyState.maxDuration = totalDurationSec > 0 ? totalDurationSec * 1000UL : 0;
-  melodyState.noteStartTime = millis();
-  melodyState.totalElapsed = 0;
+void buzzerNotifyMs(int durationMs) {
+  int pulses = max(1, durationMs / 200);
+  buzzerPulse(pulses);
 }
 
-void updateMelodyPlayback() {
-  if (!melodyState.isPlaying) return;
+void updateBuzzer() {
+  if (!buzzerState.isBuzzing) return;
   
   unsigned long now = millis();
-  unsigned long elapsed = now - melodyState.startTime;
+  unsigned long elapsed = now - buzzerState.pulseStartTime;
   
-  // Check if max duration exceeded
-  if (melodyState.maxDuration > 0 && elapsed >= melodyState.maxDuration) {
-    melodyState.isPlaying = false;
-    noTone(BUZZER_PIN1);
-    noTone(BUZZER_PIN2);
-    return;
-  }
-  
-  // Get current note
-  MelodyNote note = ALARM_MELODIES[melodyState.melodyIdx][melodyState.currentNote];
-  
-  // Check if note finished
-  if (note.freq1 == 0 || note.duration == 0) {
-    // Move to next note or repeat
-    melodyState.currentNote++;
-    
-    // Find if there are more notes
-    if (melodyState.currentNote >= 8 || ALARM_MELODIES[melodyState.melodyIdx][melodyState.currentNote].freq1 == 0) {
-      melodyState.currentRepeat++;
-      if (melodyState.currentRepeat >= melodyState.repeat) {
-        melodyState.isPlaying = false;
-        noTone(BUZZER_PIN1);
-        noTone(BUZZER_PIN2);
-        return;
-      }
-      melodyState.currentNote = 0;
+  if (elapsed < 100) { // ON for 100ms
+    digitalWrite(BUZZER_PIN, HIGH);
+  } else if (elapsed < 200) { // OFF for 100ms
+    digitalWrite(BUZZER_PIN, LOW);
+  } else {
+    buzzerState.pulseCount++;
+    buzzerState.pulseStartTime = now;
+    if (buzzerState.pulseCount >= buzzerState.targetPulses) {
+      buzzerState.isBuzzing = false;
+      digitalWrite(BUZZER_PIN, LOW);
     }
-    melodyState.noteStartTime = now;
+  }
+}
+
+// ─── SPEAKER CONTROL (SPEAKER WITH PWM) ───────────────────────────────────────
+
+void startSpeakerAlarm(int volume, int duration) {
+  speakerState.volume = constrain(volume, 0, 150);
+  speakerState.duration = constrain(duration, 1, 60);
+  speakerState.currentNote = 0;
+  speakerState.isPlaying = true;
+  speakerState.playStartTime = millis();
+  speakerState.noteStartTime = millis();
+  
+  // Configure PWM for speaker
+  ledcAttach(SPEAKER_PIN, 4000, 8);  // 4kHz frequency, 8-bit resolution
+}
+
+void stopSpeakerAlarm() {
+  speakerState.isPlaying = false;
+  ledcWriteTone(SPEAKER_PIN, 0);
+  ledcDetach(SPEAKER_PIN);
+  pinMode(SPEAKER_PIN, OUTPUT);
+  digitalWrite(SPEAKER_PIN, LOW);
+}
+
+void updateSpeaker() {
+  if (!speakerState.isPlaying) return;
+  
+  unsigned long now = millis();
+  unsigned long totalPlayTime = now - speakerState.playStartTime;
+  
+  // Check if total duration exceeded
+  if (totalPlayTime >= (unsigned long)speakerState.duration * 1000) {
+    stopSpeakerAlarm();
     return;
   }
   
-  // Check if current note duration exceeded
-  unsigned long noteDuration = now - melodyState.noteStartTime;
-  if (noteDuration > (unsigned long)note.duration + 30) {
-    // Note + gap finished
-    noTone(BUZZER_PIN1);
-    noTone(BUZZER_PIN2);
-    melodyState.noteStartTime = now;
-    melodyState.currentNote++;
+  // Play notes in sequence, looping the melody
+  unsigned long noteElapsed = now - speakerState.noteStartTime;
+  if (melodyLength <= 0) {
+    stopSpeakerAlarm();
     return;
   }
+
+  int noteDuration = noteDurations[speakerState.currentNote];
   
-  // Still playing this note
-  if (noteDuration <= (unsigned long)note.duration) {
-    int f1 = note.freq1 > 0 ? note.freq1 : melodyState.baseFreq;
-    int f2 = note.freq2 > 0 ? note.freq2 : 0;
-    tone(BUZZER_PIN1, f1);
-    if (f2) tone(BUZZER_PIN2, f2);
+  if (noteElapsed >= noteDuration) {
+    // Move to next note
+    speakerState.currentNote = (speakerState.currentNote + 1) % melodyLength;
+    speakerState.noteStartTime = now;
+    
+    // Play the note
+    int freq = melody[speakerState.currentNote];
+    if (freq > 0) {
+      ledcWriteTone(SPEAKER_PIN, freq);
+      ledcWrite(SPEAKER_PIN, speakerState.volume);
+    } else {
+      ledcWriteTone(SPEAKER_PIN, 0);
+    }
   }
-}
-
-void buzzerStart(int frequency) {
-  frequency = constrain(frequency, 100, 5000);
-  buzzerState.active = true;
-  buzzerState.frequency = frequency;
-  buzzerState.startTime = millis();
-}
-
-void buzzerUpdate() {
-  if (!buzzerState.active) return;
-  tone(BUZZER_PIN1, buzzerState.frequency);
-  tone(BUZZER_PIN2, buzzerState.frequency);
-}
-
-void buzzerTest(int frequency, unsigned long durationMs) {
-  int dur = (neoState.alarmDuration > 0) ? neoState.alarmDuration : 4;
-  startMelodyAsync(neoState.alarmMelody, frequency, 1, dur);
 }
 
 // ─── IMPROVED BUTTON HANDLING ─────────────────────────────────────────────────
 
-void handleButtonPress(int pressType) {
-  Serial.print("Button pressed: type=");
-  Serial.println(pressType);
-  
-  if (pressType == 1) {
-    // Single press: toggle LED strip
-    if (!neoState.enabled) {
-      neoState.enabled = true;
+void handleButtonPress(int type) {
+  // type: 1=single, 2=double, 3=long
+  if (type == 1) {
+    // Single: Stop Alarm
+    if (neoState.alarmActive || speakerState.isPlaying) {
+      stopSpeakerAlarm();
+      neoState.alarmActive = false;
+      neoOff();
+      updateNeopixelProgressBar();
+    }
+  } else if (type == 2) {
+    // Double: Toggle LED Strip
+    neoState.enabled = !neoState.enabled;
+    if (neoState.enabled) {
       pixels.setBrightness(neoState.brightness);
       updateNeopixelProgressBar();
     } else {
       neoOff();
-      neoState.enabled = false;
     }
-  } else if (pressType == 2) {
-    // Double press: stop alarm
-    Serial.println("Double press - stopping alarm");
-    melodyState.isPlaying = false;
-    neoState.alarmActive = false;
-    buzzerStop();
-    neoOff();
-  } else if (pressType == 3) {
-    // Long press: toggle sleep mode
-    Serial.println("Long press - toggling sleep mode");
-    if (!neoState.enabled && !lcdBacklight) {
+  } else if (type == 3) {
+    // Long: Toggle Sleep Mode (LCD + LED)
+    if (lcdBacklight || neoState.enabled) {
+      // Go to sleep
+      lcdBacklight = false;
+      lcd.noBacklight();
+      neoOff();
+      neoState.enabled = false;
+    } else {
       // Wake up
-      neoState.enabled = true;
-      pixels.setBrightness(neoState.brightness);
-      updateNeopixelProgressBar();
       lcdBacklight = true;
       lcd.backlight();
-    } else {
-      // Sleep
-      neoOff();
-      neoState.enabled = false;
-      lcd.noBacklight();
-      lcdBacklight = false;
+      neoState.enabled = true;
+      pixels.setBrightness(neoState.brightness);
+      updateNeopixelProgressBar();
     }
   }
 }
 
-void updateButtonState() {
-  bool buttonState = !digitalRead(BUTTON_PIN);  // LOW = pressed
+void updateButton() {
+  static bool lastState = HIGH;
+  static unsigned long lastTime = 0;
+  static int count = 0;
+  static bool longPressTriggered = false;
+
+  bool currentState = digitalRead(BUTTON_PIN);
   unsigned long now = millis();
-  
-  if (buttonState && !buttonPressed) {
-    // Button just pressed
-    buttonPressed = true;
-    buttonPressTime = now;
-    pressCount = 0;  // Reset counter on new press
-  } else if (!buttonState && buttonPressed) {
-    // Button just released
-    unsigned long pressDuration = now - buttonPressTime;
-    buttonPressed = false;
-    lastPressEndTime = now;
-    
-    if (pressDuration >= LONG_PRESS_TIME) {
-      // Long press detected
-      handleButtonPress(3);
-      pressCount = 0;
-    } else {
-      // Short press - increment counter
-      pressCount++;
+
+  // Polling based state machine
+  if (currentState != lastState) {
+    delay(10); // Simple debounce
+    if (digitalRead(BUTTON_PIN) == currentState) {
+      if (currentState == LOW) { // Pressed
+        lastTime = now;
+        longPressTriggered = false;
+      } else { // Released
+        if (!longPressTriggered) {
+          count++;
+          lastTime = now;
+        }
+      }
+      lastState = currentState;
     }
   }
-  
-  // Finalize single/double press
-  if (pressCount > 0 && !buttonPressed && (now - lastPressEndTime) >= DOUBLE_CLICK_WINDOW) {
-    if (pressCount == 1) {
-      handleButtonPress(1);
-    } else if (pressCount >= 2) {
-      handleButtonPress(2);
-    }
-    pressCount = 0;
+
+  // Check Long Press
+  if (currentState == LOW && !longPressTriggered && (now - lastTime > LONG_PRESS_TIME)) {
+    handleButtonPress(3);
+    longPressTriggered = true;
+    count = 0; 
+  }
+
+  // Check Single/Double press window
+  if (count > 0 && currentState == HIGH && (now - lastTime > DOUBLE_CLICK_WINDOW)) {
+    if (count == 1) handleButtonPress(1);
+    else if (count >= 2) handleButtonPress(2);
+    count = 0;
   }
 }
 
@@ -744,18 +747,25 @@ bool fetchPrayerTimes() {
 }
 
 void ensureWiFi() {
-  if (WiFi.status() == WL_CONNECTED) return;
-  lcdMsg("WiFi Lost", "Reconnecting...");
+  wl_status_t st = WiFi.status();
+  if (st == WL_CONNECTED) {
+    if (!wifiWasConnected) {
+      wifiWasConnected = true;
+      buzzerNotifyMs(BUZZ_NOTIFY_MS);
+    }
+    return;
+  }
+
+  wifiWasConnected = false;
+  unsigned long now = millis();
+  if (now - lastWiFiAttempt < WIFI_RETRY_INTERVAL) return;
+  lastWiFiAttempt = now;
+
+  if (!timeSynced) {
+    lcdMsg("WiFi Lost", "Reconnecting...");
+  }
   WiFi.disconnect();
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  int attempt = 0;
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    attempt++;
-    lcdProgress("Reconnecting", attempt % 16, 16);
-  }
-  lcdMsg("WiFi OK", WiFi.localIP().toString().c_str());
-  delay(1000);
 }
 
 void rebuildNTP() {
@@ -1013,7 +1023,6 @@ void handleNeopixelStatus() {
   doc["brightness"] = neoState.brightness;
   doc["animationMode"] = neoState.animationMode;
   doc["alarmAnimMode"] = neoState.alarmAnimMode;
-  doc["alarmFreq"] = neoState.alarmFreq;
   doc["alarmActive"] = neoState.alarmActive;
   doc["progressPercent"] = (float)neoState.progressPercent;
   doc["currentPrayerColor"] = neoState.currentPrayerColor;
@@ -1057,9 +1066,6 @@ void handleNeopixelUpdate() {
   if (doc.containsKey("brightness")) neoSetBrightness(doc["brightness"].as<int>());
   if (doc.containsKey("animationMode")) neoState.animationMode = doc["animationMode"].as<int>();
   if (doc.containsKey("alarmAnimMode")) neoState.alarmAnimMode = doc["alarmAnimMode"].as<int>();
-  if (doc.containsKey("alarmFreq")) neoState.alarmFreq = constrain(doc["alarmFreq"].as<int>(), 100, 5000);
-  if (doc.containsKey("alarmMelody")) neoState.alarmMelody = constrain(doc["alarmMelody"].as<int>(), 0, 4);
-  if (doc.containsKey("alarmDuration")) neoState.alarmDuration = constrain(doc["alarmDuration"].as<int>(), 1, 30);
   
   if (doc.containsKey("prayerColors")) {
     JsonArray colors = doc["prayerColors"].as<JsonArray>();
@@ -1097,16 +1103,14 @@ void handleNeopixelAlarm() {
   String action = doc.containsKey("action") ? doc["action"].as<String>() : "";
   
   if (action == "start") {
-    // *** FIXED: Use async melody instead of blocking playMelody() ***
     neoState.alarmActive = true;
     neoState.alarmStartTime = millis();
-    int dur = (neoState.alarmDuration > 0) ? neoState.alarmDuration : 4;
-    startMelodyAsync(neoState.alarmMelody, neoState.alarmFreq, 2, dur);
+    startSpeakerAlarm(speakerState.volume, speakerState.duration);
+    buzzerPulse(3);
     server.send(200, "application/json", "{\"ok\":true,\"status\":\"alarm started\"}");
   } else if (action == "stop") {
     neoState.alarmActive = false;
-    melodyState.isPlaying = false;
-    buzzerStop();
+    stopSpeakerAlarm();
     neoOff();
     server.send(200, "application/json", "{\"ok\":true,\"status\":\"alarm stopped\"}");
   } else {
@@ -1114,20 +1118,135 @@ void handleNeopixelAlarm() {
   }
 }
 
-void handleBuzzerTest() {
+void handleSpeakerStatus() {
+  addCORS();
+  DynamicJsonDocument doc(256);
+  doc["volume"] = speakerState.volume;
+  doc["duration"] = speakerState.duration;
+  doc["isPlaying"] = speakerState.isPlaying;
+  
+  String out;
+  serializeJson(doc, out);
+  server.send(200, "application/json", out);
+}
+
+void handleSpeakerUpdate() {
+  addCORS();
+  if (!server.hasArg("plain")) { server.send(400, "application/json", "{\"error\":\"no body\"}"); return; }
+
+  DynamicJsonDocument doc(256);
+  if (deserializeJson(doc, server.arg("plain"))) {
+    server.send(400, "application/json", "{\"error\":\"bad json\"}"); return;
+  }
+
+  if (doc.containsKey("volume")) {
+    speakerState.volume = constrain(doc["volume"].as<int>(), 0, 150);
+  }
+  if (doc.containsKey("duration")) {
+    speakerState.duration = constrain(doc["duration"].as<int>(), 1, 60);
+  }
+
+  if (doc.containsKey("melody") && doc.containsKey("noteDurations")) {
+    JsonArray m = doc["melody"].as<JsonArray>();
+    JsonArray d = doc["noteDurations"].as<JsonArray>();
+    if (!m.isNull() && !d.isNull() && m.size() == d.size() && m.size() > 0) {
+      int len = (int)m.size();
+      if (len > MAX_MELODY_LEN) len = MAX_MELODY_LEN;
+      melodyLength = len;
+      for (int i = 0; i < len; i++) {
+        melody[i] = m[i].as<int>();
+        noteDurations[i] = d[i].as<int>();
+      }
+    }
+  }
+
+  server.send(200, "application/json", "{\"ok\":true}");
+}
+
+void handleSpeakerTest() {
   addCORS();
   if (!server.hasArg("plain")) { server.send(400); return; }
   DynamicJsonDocument doc(256);
   if (deserializeJson(doc, server.arg("plain"))) { server.send(400); return; }
   
-  int freq = doc.containsKey("frequency") ? doc["frequency"].as<int>() : 1000;
-  unsigned long dur = doc.containsKey("duration") ? doc["duration"].as<unsigned long>() : 500;
+  int volume = doc.containsKey("volume") ? doc["volume"].as<int>() : 100;
+  int duration = doc.containsKey("duration") ? doc["duration"].as<int>() : 30;
+
+  if (doc.containsKey("melody") && doc.containsKey("noteDurations")) {
+    JsonArray m = doc["melody"].as<JsonArray>();
+    JsonArray d = doc["noteDurations"].as<JsonArray>();
+    if (!m.isNull() && !d.isNull() && m.size() == d.size() && m.size() > 0) {
+      int len = (int)m.size();
+      if (len > MAX_MELODY_LEN) len = MAX_MELODY_LEN;
+      melodyLength = len;
+      for (int i = 0; i < len; i++) {
+        melody[i] = m[i].as<int>();
+        noteDurations[i] = d[i].as<int>();
+      }
+    }
+  }
   
-  freq = constrain(freq, 100, 2000);
-  dur = constrain(dur, 100, 5000);
-  
-  buzzerTest(freq, dur);
+  startSpeakerAlarm(volume, duration);
+  server.send(200, "application/json", "{\"ok\":true,\"status\":\"speaker test started\"}");
+}
+
+void handleBuzzerTest() {
+  addCORS();
+  int durationMs = BUZZ_NOTIFY_MS;
+  if (server.hasArg("plain")) {
+    DynamicJsonDocument doc(128);
+    if (!deserializeJson(doc, server.arg("plain"))) {
+      if (doc.containsKey("duration")) {
+        durationMs = constrain(doc["duration"].as<int>(), 100, 5000);
+      }
+    }
+  }
+  buzzerNotifyMs(durationMs);
   server.send(200, "application/json", "{\"ok\":true}");
+}
+
+void handleAlarmGet() {
+  addCORS();
+  DynamicJsonDocument doc(1024);
+  JsonArray arr = doc.createNestedArray("alarms");
+  for (int i = 0; i < customAlarmCount; i++) {
+    JsonObject a = arr.createNestedObject();
+    char timeBuf[6];
+    sprintf(timeBuf, "%02d:%02d", customAlarms[i].hour, customAlarms[i].minute);
+    a["time"]    = timeBuf;
+    a["label"]   = customAlarms[i].label;
+    a["enabled"] = customAlarms[i].enabled;
+  }
+  String out;
+  serializeJson(doc, out);
+  server.send(200, "application/json", out);
+}
+
+void handleAlarmPost() {
+  addCORS();
+  if (!server.hasArg("plain")) { server.send(400, "application/json", "{\"error\":\"no body\"}"); return; }
+  DynamicJsonDocument doc(1024);
+  if (deserializeJson(doc, server.arg("plain"))) { server.send(400, "application/json", "{\"error\":\"bad json\"}"); return; }
+
+  if (doc.containsKey("alarms")) {
+    JsonArray arr = doc["alarms"].as<JsonArray>();
+    customAlarmCount = 0;
+    for (JsonObject a : arr) {
+      if (customAlarmCount >= MAX_ALARMS) break;
+      String t = a["time"].as<String>();
+      if (t.length() < 5 || t[2] != ':') continue;
+      customAlarms[customAlarmCount].hour    = t.substring(0, 2).toInt();
+      customAlarms[customAlarmCount].minute  = t.substring(3, 5).toInt();
+      customAlarms[customAlarmCount].enabled = a.containsKey("enabled") ? a["enabled"].as<bool>() : true;
+      customAlarms[customAlarmCount].valid   = true;
+      String lbl = a.containsKey("label") ? a["label"].as<String>() : "";
+      lbl.toCharArray(customAlarms[customAlarmCount].label, 25);
+      customAlarmCount++;
+    }
+    server.send(200, "application/json", "{\"ok\":true}");
+  } else {
+    server.send(400, "application/json", "{\"error\":\"missing alarms array\"}");
+  }
 }
 
 void setup() {
@@ -1140,18 +1259,21 @@ void setup() {
   lcd.init();
   lcd.backlight();
   lcdMsg("System Boot", "Initializing...");
+  
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
+  buzzerNotifyMs(BUZZ_NOTIFY_MS); // Boot notify
+  
   delay(1000);
 
   pixels.begin();
   pixels.setBrightness(255);
   neoOff();
   
-  pinMode(BUZZER_PIN1, OUTPUT);
-  pinMode(BUZZER_PIN2, OUTPUT);
-  noTone(BUZZER_PIN1);
-  noTone(BUZZER_PIN2);
+  pinMode(SPEAKER_PIN, OUTPUT);
+  digitalWrite(SPEAKER_PIN, LOW);
   
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(BUTTON_PIN, INPUT);
 
   Serial.println("\n========== BOOT START ==========");
   lcdMsg("WiFi Setup", "Connecting...");
@@ -1190,6 +1312,7 @@ void setup() {
 
   Serial.println("\n✓ WiFi Connected! IP: " + WiFi.localIP().toString());
   lcdMsg("WiFi OK", WiFi.localIP().toString().c_str());
+  buzzerNotifyMs(BUZZ_NOTIFY_MS); // WiFi connected notify
   
   for (int i = 0; i < NEOPIXEL_COUNT; i++) {
     pixels.setPixelColor(i, pixels.Color(0, 255, 0));
@@ -1223,6 +1346,7 @@ void setup() {
   }
   Serial.println("\n✓ NTP OK: " + clockString());
   lcdMsg("NTP OK", clockString().c_str());
+  timeSynced = true;
   
   for (int i = 0; i < NEOPIXEL_COUNT; i++) {
     pixels.setPixelColor(i, pixels.Color(0, 255, 0));
@@ -1241,6 +1365,9 @@ void setup() {
   fetchedToday = true;
   lastFetchDay = timeClient->getDay();
 
+  server.on("/alarm",       HTTP_GET,     handleAlarmGet);
+  server.on("/alarm",       HTTP_POST,    handleAlarmPost);
+  server.on("/alarm",       HTTP_OPTIONS, handleOptions);
   server.on("/status",  HTTP_GET,     handleStatus);
   server.on("/update",  HTTP_POST,    handleUpdate);
   server.on("/refetch", HTTP_GET,     handleRefetch);
@@ -1254,6 +1381,9 @@ void setup() {
   server.on("/neopixel/update", HTTP_POST, handleNeopixelUpdate);
   server.on("/neopixel/progress", HTTP_POST, handleNeopixelProgress);
   server.on("/neopixel/alarm", HTTP_POST, handleNeopixelAlarm);
+  server.on("/speaker/status", HTTP_GET, handleSpeakerStatus);
+  server.on("/speaker/update", HTTP_POST, handleSpeakerUpdate);
+  server.on("/speaker/test", HTTP_POST, handleSpeakerTest);
   server.on("/buzzer/test", HTTP_POST, handleBuzzerTest);
   server.on("/status",  HTTP_OPTIONS, handleOptions);
   server.on("/update",  HTTP_OPTIONS, handleOptions);
@@ -1267,6 +1397,9 @@ void setup() {
   server.on("/neopixel/update", HTTP_OPTIONS, handleOptions);
   server.on("/neopixel/progress", HTTP_OPTIONS, handleOptions);
   server.on("/neopixel/alarm", HTTP_OPTIONS, handleOptions);
+  server.on("/speaker/status", HTTP_OPTIONS, handleOptions);
+  server.on("/speaker/update", HTTP_OPTIONS, handleOptions);
+  server.on("/speaker/test", HTTP_OPTIONS, handleOptions);
   server.on("/buzzer/test", HTTP_OPTIONS, handleOptions);
   server.begin();
 
@@ -1337,10 +1470,9 @@ void updateNeopixelTimerBar() {
 void loop() {
   server.handleClient();
   
-  // *** UPDATE MELODY PLAYBACK (non-blocking) ***
-  updateMelodyPlayback();
-  
-  updateButtonState();
+  updateSpeaker();
+  updateBuzzer();
+  updateButton();
   
   if (timerRunning && timerMode == 1) {
     unsigned long currentElapsed = timerElapsed + (millis() - timerStartTime);
@@ -1348,7 +1480,7 @@ void loop() {
       timerEnded = true;
       timerRunning = false;
       timerEndStartTime = millis();
-      buzzerStart(1500);
+      buzzerPulse(5);
     }
   }
   
@@ -1356,29 +1488,28 @@ void loop() {
     unsigned long elapsed = millis() - timerEndStartTime;
     if (elapsed < timerEndDuration) {
       neoTimerEndAnimation(elapsed);
-      buzzerUpdate();
     } else {
       timerEnded = false;
-      buzzerStop();
       updateNeopixelProgressBar();
     }
   }
   
   if (neoState.alarmActive && neoState.enabled) {
     unsigned long elapsed = millis() - neoState.alarmStartTime;
-    if (elapsed < 30000) {
+    if (elapsed < 600000) { // Limit to 10 mins
       neoAlarmAnimation(elapsed);
     } else {
       neoState.alarmActive = false;
-      melodyState.isPlaying = false;
+      stopSpeakerAlarm();
       neoOff();
-      buzzerStop();
     }
   }
   
   ensureWiFi();
 
-  if (timeClient) timeClient->update();
+  if (timeClient && timeClient->update()) {
+    timeSynced = true;
+  }
   unsigned long now = millis();
 
   if (timeClient) {
@@ -1388,6 +1519,38 @@ void loop() {
       if (fetchPrayerTimes()) {
         fetchedToday = true;
         lastFetchDay = day;
+      }
+    }
+
+    // Prayer Trigger logic
+    int now_m = timeClient->getHours() * 60 + timeClient->getMinutes();
+    int now_s = timeClient->getSeconds();
+    static int lastTriggeredMinute = -1;
+    if (now_s == 0 && now_m != lastTriggeredMinute) {
+      for (int i = 0; i < 6; i++) {
+        if (i == 1) continue; // Skip sunrise
+        if (toMinutes(prayerTimes[i]) == now_m) {
+          buzzerNotifyMs(BUZZ_NOTIFY_MS); // Notify on prayer time start
+          lastTriggeredMinute = now_m;
+          break;
+        }
+      }
+    }
+
+    // Custom alarm trigger
+    if (now_s == 0 && now_m != lastAlarmTriggeredMinute) {
+      int curH = timeClient->getHours();
+      int curMin = timeClient->getMinutes();
+      for (int i = 0; i < customAlarmCount; i++) {
+        if (customAlarms[i].enabled && customAlarms[i].valid &&
+            customAlarms[i].hour == curH && customAlarms[i].minute == curMin) {
+          startSpeakerAlarm(speakerState.volume, speakerState.duration);
+          buzzerPulse(5);
+          neoState.alarmActive = true;
+          neoState.alarmStartTime = millis();
+          lastAlarmTriggeredMinute = now_m;
+          break;
+        }
       }
     }
   }
