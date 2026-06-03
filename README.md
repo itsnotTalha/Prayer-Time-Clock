@@ -232,43 +232,8 @@ const unsigned long DOUBLE_CLICK_WINDOW = 400;    // Double-click window
 4. ESP32 processes → Validates → Updates state → Returns response
 5. Neopixel/LCD updates every 100ms based on current prayer progress
 
-## 🛠️ Troubleshooting
-
-### WiFi Connection Issues
-- Check WiFi credentials in code
-- Verify ESP32 and router are on same network
-- Check Serial Monitor for connection status
-
-### LCD Not Showing
-- Verify I2C address is `0x27` (adjust in code if needed)
-- Check wiring: SDA→GPIO21, SCL→GPIO22, GND→GND, VCC→5V
-- Test with LCD I2C address scanner
-
-### Prayer Times Not Updating
-- Check internet connectivity via dashboard
-- Verify city/country names are correctly spelled
-- Try manual refetch via dashboard or `/refetch` endpoint
-
-### LED Strip Not Responding
-- Verify GPIO12 is connected to data pin
-- Check LED power supply (separate 5V recommended)
-- Try setting brightness to maximum
-
-### Speaker Noise Issues
-- Reduce speaker volume via dashboard
-- Check for loose audio connections
-- Use separate power supply if noise persists
 
 ## 📄 License
 
 This project is open-source. Feel free to modify and distribute.
 
-## 🙏 Acknowledgments
-
-- **Aladhan API** — Prayer times calculations and data
-- **Adafruit** — Neopixel library and documentation
-- **Arduino Community** — Libraries and support
-
----
-
-**Built with ❤️ for the Muslim community**
